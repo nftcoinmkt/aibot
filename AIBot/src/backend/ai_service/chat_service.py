@@ -314,12 +314,16 @@ class ChatService:
 
         try:
             # Save user message with file
+            file_extension = file_name.split('.')[-1].lower() if '.' in file_name else ''
             user_message = ChannelMessage(
                 channel_id=channel_id,
                 user_id=user_id,
                 message=message_text,
                 message_type="user",
-                created_at=datetime.utcnow()
+                created_at=datetime.utcnow(),
+                file_url=file_url,
+                file_name=file_name,
+                file_type=file_extension
             )
             db.add(user_message)
             db.commit()
@@ -364,7 +368,13 @@ class ChatService:
                     "response": None,
                     "provider": None,
                     "message_type": user_message.message_type,
-                    "created_at": user_message.created_at
+                    "created_at": user_message.created_at,
+                    "attachment": {
+                        "id": str(user_message.id),
+                        "file_url": user_message.file_url,
+                        "file_name": user_message.file_name,
+                        "file_type": user_message.file_type
+                    } if user_message.file_url else None
                 },
                 {
                     "id": ai_message.id,
@@ -374,7 +384,8 @@ class ChatService:
                     "response": ai_message.response,
                     "provider": ai_message.provider,
                     "message_type": ai_message.message_type,
-                    "created_at": ai_message.created_at
+                    "created_at": ai_message.created_at,
+                    "attachment": None
                 }
             ]
 

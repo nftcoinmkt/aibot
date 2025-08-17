@@ -238,11 +238,9 @@ class ApiService {
     }
   }
 
-  Future<List<ChatMessage>> getChannelMessages(int channelId) async {
-    // NOTE: The endpoint for getting channel messages is not in the Postman collection.
-    // This is a placeholder implementation assuming the endpoint is /channels/{id}/messages
+  Future<List<ChatMessage>> getChannelMessages(int channelId, {int daysBack = 2}) async {
     final response = await http.get(
-      Uri.parse('$_baseUrl/channels/$channelId/messages'),
+      Uri.parse('$_baseUrl/channels/$channelId/messages?days_back=$daysBack'),
       headers: {'Authorization': 'Bearer $_userToken'},
     );
 
@@ -250,10 +248,23 @@ class ApiService {
       List<dynamic> body = jsonDecode(response.body);
       return body.map((dynamic item) => ChatMessage.fromJson(item)).toList();
     } else {
-      // Returning empty list for now as the endpoint is not available
       print('Failed to load messages: ${response.body}');
-      return [];
-      // throw Exception('Failed to load messages');
+      throw Exception('Failed to load messages: ${response.body}');
+    }
+  }
+
+  Future<List<ChatMessage>> getAllChannelMessages(int channelId) async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/channels/$channelId/messages/all'),
+      headers: {'Authorization': 'Bearer $_userToken'},
+    );
+
+    if (response.statusCode == 200) {
+      List<dynamic> body = jsonDecode(response.body);
+      return body.map((dynamic item) => ChatMessage.fromJson(item)).toList();
+    } else {
+      print('Failed to load all messages: ${response.body}');
+      throw Exception('Failed to load all messages: ${response.body}');
     }
   }
 

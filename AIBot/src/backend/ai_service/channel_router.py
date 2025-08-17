@@ -172,19 +172,52 @@ def get_channel_messages(
     channel_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
+    days_back: int = Query(2, ge=1, le=30),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_default_db)
 ):
     """
-    Get messages from a specific channel.
+    Get recent messages from a specific channel (default: last 2 days).
     """
     messages = channel_service.get_channel_messages(
-        db, 
-        channel_id, 
-        skip=skip, 
+        db,
+        channel_id,
+        skip=skip,
+        limit=limit,
+        days_back=days_back
+    )
+    return messages
+
+@router.get("/channels/{channel_id}/messages/all", response_model=List[channel_schemas.ChannelMessage])
+def get_all_channel_messages(
+    channel_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_default_db)
+):
+    """
+    Get all messages from a specific channel (including archived).
+    """
+    messages = channel_service.get_all_channel_messages(
+        db,
+        channel_id,
+        skip=skip,
         limit=limit
     )
     return messages
+
+@router.post("/channels/archive")
+def archive_old_messages(
+    days_old: int = Query(7, ge=1, le=365),
+    current_user: User = Depends(get_current_active_superuser),
+    db: Session = Depends(get_default_db)
+):
+    """
+    Archive messages older than specified days (admin only).
+    """
+    archived_count = channel_service.archive_old_messages(db, days_old)
+    return {"message": f"Archived {archived_count} messages older than {days_old} days"}
 
 @router.post("/channels/{channel_id}/upload")
 async def upload_file_to_channel(

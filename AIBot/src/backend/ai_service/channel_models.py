@@ -42,6 +42,14 @@ class ChannelMessage(Base):
     provider = Column(String, nullable=True)  # 'groq' or 'gemini' for AI responses
     message_type = Column(String, default='user')  # 'user', 'ai', 'system'
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # File attachment fields
+    file_url = Column(String, nullable=True)  # URL to the uploaded file
+    file_name = Column(String, nullable=True)  # Original filename
+    file_type = Column(String, nullable=True)  # File type/extension
+
+    # Archive status
+    is_archived = Column(Boolean, default=False)  # Whether message is archived
     
     # Additional metadata
     message_length = Column(Integer, nullable=True)

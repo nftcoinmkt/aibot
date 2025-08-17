@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from typing import List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from src.backend.shared.database_manager import get_tenant_db
 from .channel_models import Channel, ChannelMessage, channel_members
@@ -199,18 +199,27 @@ class ChannelService:
         return result.rowcount > 0
 
     def get_channel_messages(
-        self, db: Session, channel_id: int, skip: int = 0, limit: int = 50
+        self, db: Session, channel_id: int, skip: int = 0, limit: int = 50, days_back: int = 2
     ) -> List[channel_schemas.ChannelMessage]:
-        """Get messages from a specific channel."""
+        """Get recent messages from a specific channel (default: last 2 days)."""
+        # Calculate the cutoff date
+        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+
         messages = (
             db.query(ChannelMessage)
-            .filter(ChannelMessage.channel_id == channel_id)
+            .filter(
+                and_(
+                    ChannelMessage.channel_id == channel_id,
+                    ChannelMessage.is_archived == False,
+                    ChannelMessage.created_at >= cutoff_date
+                )
+            )
             .order_by(ChannelMessage.created_at.desc())
             .offset(skip)
             .limit(limit)
             .all()
         )
-        
+
         return [
             channel_schemas.ChannelMessage(
                 id=msg.id,
@@ -225,26 +234,78 @@ class ChannelService:
             for msg in messages
         ]
 
+    def get_all_channel_messages(
+        self, db: Session, channel_id: int, skip: int = 0, limit: int = 50
+    ) -> List[channel_schemas.ChannelMessage]:
+        """Get all messages from a specific channel (including archived)."""
+        messages = (
+            db.query(ChannelMessage)
+            .filter(ChannelMessage.channel_id == channel_id)
+            .order_by(ChannelMessage.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            channel_schemas.ChannelMessage(
+                id=msg.id,
+                channel_id=msg.channel_id,
+                user_id=msg.user_id,
+                message=msg.message,
+                response=msg.response,
+                provider=msg.provider,
+                message_type=msg.message_type,
+                created_at=msg.created_at
+            )
+            for msg in messages
+        ]
+
+    def archive_old_messages(self, db: Session, days_old: int = 7) -> int:
+        """Archive messages older than specified days."""
+        cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+
+        # Update old messages to archived status
+        updated_count = (
+            db.query(ChannelMessage)
+            .filter(
+                and_(
+                    ChannelMessage.created_at < cutoff_date,
+                    ChannelMessage.is_archived == False
+                )
+            )
+            .update({"is_archived": True})
+        )
+
+        db.commit()
+        return updated_count
+
     def create_file_message(
-        self, 
-        db: Session, 
-        channel_id: int, 
-        user_id: int, 
+        self,
+        db: Session,
+        channel_id: int,
+        user_id: int,
         message: str,
         file_url: str,
         file_name: str,
         file_size: int
     ) -> ChannelMessage:
         """Create a message with file attachment."""
+        # Determine file type from extension
+        file_extension = file_name.split('.')[-1].lower() if '.' in file_name else ''
+
         channel_message = ChannelMessage(
             channel_id=channel_id,
             user_id=user_id,
             message=message,
             message_type="user",
             created_at=datetime.utcnow(),
-            message_length=len(message)
+            message_length=len(message),
+            file_url=file_url,
+            file_name=file_name,
+            file_type=file_extension
         )
-        
+
         db.add(channel_message)
         db.commit()
         db.refresh(channel_message)

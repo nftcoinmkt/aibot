@@ -7,8 +7,10 @@ import 'package:flutter_ai_bot/network/api_service.dart';
 import 'dart:async';
 import 'package:flutter_ai_bot/utils/platform_file_uploader.dart';
 import 'package:flutter_ai_bot/views/channel_details_view.dart';
+import 'package:flutter_ai_bot/widgets/file_preview_dialog.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
+import 'package:path/path.dart' as path;
 
 
 class ChatView extends StatefulWidget {
@@ -27,6 +29,7 @@ class _ChatViewState extends State<ChatView> {
   int? _currentUserId;
   bool _isTyping = false;
   bool _isLoading = true;
+  bool _showingAllMessages = false;
   final PlatformFileUploader _fileUploader = getPlatformFileUploader();
   int _lastMessageId = 0;
 
@@ -63,6 +66,7 @@ class _ChatViewState extends State<ChatView> {
             _lastMessageId = _messages.first.id;
           }
           _isLoading = false;
+          _showingAllMessages = false;
         });
       }
     } catch (e) {
@@ -72,6 +76,27 @@ class _ChatViewState extends State<ChatView> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load messages: $e')),
+        );
+      }
+    }
+  }
+
+  void _loadAllMessages() async {
+    try {
+      final allMessages = await widget.apiService.getAllChannelMessages(widget.channel.id);
+      if (mounted) {
+        setState(() {
+          _messages = allMessages.reversed.toList();
+          if (_messages.isNotEmpty) {
+            _lastMessageId = _messages.first.id;
+          }
+          _showingAllMessages = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load all messages: $e')),
         );
       }
     }
@@ -303,32 +328,57 @@ class _ChatViewState extends State<ChatView> {
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFFE5DDD5),
-        ),
-        child: Column(
-          children: [
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      reverse: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        final message = _messages[index];
-                        final isMe = message.userId == _currentUserId;
-                        final isAI = message.userId == -1; // AI messages have userId -1
-                        return _buildMessageBubble(message, isMe, isAI: isAI);
-                      },
-                    ),
-            ),
-            Container(
-              color: Colors.white,
-              child: _buildMessageComposer(),
-            ),
-          ],
+      body: SafeArea(
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFE5DDD5),
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : Column(
+                        children: [
+                          if (!_showingAllMessages && _messages.isNotEmpty)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(8),
+                              child: ElevatedButton.icon(
+                                onPressed: _loadAllMessages,
+                                icon: const Icon(CupertinoIcons.clock, size: 16),
+                                label: const Text('Load Older Messages'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF075E54),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          Expanded(
+                            child: ListView.builder(
+                              reverse: true,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              itemCount: _messages.length,
+                              itemBuilder: (context, index) {
+                                final message = _messages[index];
+                                final isMe = message.userId == _currentUserId;
+                                final isAI = message.userId == -1; // AI messages have userId -1
+                                return _buildMessageBubble(message, isMe, isAI: isAI);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+              Container(
+                color: Colors.white,
+                child: _buildMessageComposer(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -360,7 +410,12 @@ class _ChatViewState extends State<ChatView> {
               ),
             ),
           Flexible(
-            child: _buildMessageContent(message, isMe, isAI: isAI),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.75,
+              ),
+              child: _buildMessageContent(message, isMe, isAI: isAI),
+            ),
           ),
           if (isMe) ...[
             const SizedBox(width: 4),
@@ -479,38 +534,119 @@ class _ChatViewState extends State<ChatView> {
   }
 
   Widget _buildAttachmentView(Attachment attachment) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(CupertinoIcons.doc, color: Colors.grey[700], size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              attachment.fileName,
-              style: const TextStyle(
-                decoration: TextDecoration.underline,
-                fontSize: 14,
+    final fileExtension = path.extension(attachment.fileName).toLowerCase();
+    final isImage = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(fileExtension);
+    final isPdf = fileExtension == '.pdf';
+
+    return GestureDetector(
+      onTap: () => _showFilePreview(attachment),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _getFileIconColor(fileExtension).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
-              overflow: TextOverflow.ellipsis,
+              child: Icon(
+                _getFileIcon(fileExtension),
+                color: _getFileIconColor(fileExtension),
+                size: 24,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    attachment.fileName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isImage ? 'Image • Tap to view' :
+                    isPdf ? 'PDF Document • Tap to view' :
+                    'File • Tap to view',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              CupertinoIcons.eye,
+              color: Colors.grey[600],
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getFileIcon(String extension) {
+    switch (extension) {
+      case '.jpg':
+      case '.jpeg':
+      case '.png':
+      case '.gif':
+      case '.bmp':
+      case '.webp':
+        return CupertinoIcons.photo;
+      case '.pdf':
+        return CupertinoIcons.doc_text;
+      default:
+        return CupertinoIcons.doc;
+    }
+  }
+
+  Color _getFileIconColor(String extension) {
+    switch (extension) {
+      case '.jpg':
+      case '.jpeg':
+      case '.png':
+      case '.gif':
+      case '.bmp':
+      case '.webp':
+        return Colors.blue;
+      case '.pdf':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  void _showFilePreview(Attachment attachment) {
+    showDialog(
+      context: context,
+      builder: (context) => FilePreviewDialog(
+        attachment: attachment,
+        baseUrl: 'http://localhost:8000', // TODO: Get from API service
       ),
     );
   }
 
   Widget _buildMessageComposer() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: SafeArea(
-        child: Row(
-          children: [
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      child: Row(
+        children: [
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -572,8 +708,7 @@ class _ChatViewState extends State<ChatView> {
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

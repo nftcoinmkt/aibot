@@ -769,6 +769,66 @@
             },
             "description": "Upload a file (image or PDF) to a channel for AI analysis"
           }
+        },
+        {
+          "name": "Get All Channel Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/channels/1/messages/all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "1",
+                "messages",
+                "all"
+              ]
+            },
+            "description": "Get all messages from a channel including archived ones"
+          }
+        },
+        {
+          "name": "Archive Old Messages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/channels/archive?days_old=7",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "archive"
+              ],
+              "query": [
+                {
+                  "key": "days_old",
+                  "value": "7"
+                }
+              ]
+            },
+            "description": "Archive messages older than specified days (admin only)"
+          }
         }
       ]
     },
