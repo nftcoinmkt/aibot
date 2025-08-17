@@ -9,6 +9,7 @@ from src.backend.auth.schemas import User
 from src.backend.auth.authentication_service import get_current_active_user, get_current_active_superuser
 from src.backend.shared.database_manager import get_default_db
 from .channel_service import channel_service
+from .chat_service import chat_service
 from . import channel_schemas
 
 router = APIRouter()
@@ -193,17 +194,17 @@ async def upload_file_to_channel(
     db: Session = Depends(get_default_db)
 ):
     """
-    Upload a file to a channel.
+    Upload a file to a channel and trigger AI analysis.
     """
     # Create uploads directory if it doesn't exist
     upload_dir = Path("uploads") / "channels" / str(channel_id)
     upload_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Generate unique filename
-    file_extension = Path(file.filename).suffix
+    file_extension = Path(file.filename).suffix.lower()
     unique_filename = f"{uuid.uuid4()}{file_extension}"
     file_path = upload_dir / unique_filename
-    
+
     # Save file
     try:
         with open(file_path, "wb") as buffer:
@@ -211,27 +212,59 @@ async def upload_file_to_channel(
             buffer.write(content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
-    
-    # Create message with file attachment
+
+    # Create file URL
     file_url = f"/uploads/channels/{channel_id}/{unique_filename}"
-    message_text = f"📎 {file.filename}"
-    
-    # Save to database via channel service
-    message = channel_service.create_file_message(
-        db=db,
-        channel_id=channel_id,
-        user_id=current_user.id,
-        message=message_text,
-        file_url=file_url,
-        file_name=file.filename,
-        file_size=len(content)
-    )
-    
-    return {
-        "message": "File uploaded successfully",
-        "file_url": file_url,
-        "message_id": message.id
-    }
+
+    # Determine file type and create appropriate message
+    if file_extension in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
+        message_text = f"🖼️ {file.filename}"
+        analysis_prompt = f"Please analyze this image and describe what you see. Image: {file.filename}"
+    elif file_extension == '.pdf':
+        message_text = f"📄 {file.filename}"
+        analysis_prompt = f"Please summarize this PDF document. Document: {file.filename}"
+    else:
+        message_text = f"📎 {file.filename}"
+        analysis_prompt = f"I've uploaded a file: {file.filename}. Please acknowledge the upload."
+
+    # Process the file upload and get AI analysis
+    try:
+        messages = chat_service.process_file_upload(
+            user_id=current_user.id,
+            tenant_name=current_user.tenant_name,
+            channel_id=channel_id,
+            file_path=str(file_path),
+            file_url=file_url,
+            file_name=file.filename,
+            message_text=message_text,
+            analysis_prompt=analysis_prompt
+        )
+
+        return {"messages": messages}
+    except Exception as e:
+        # If AI analysis fails, still save the file message
+        message = channel_service.create_file_message(
+            db=db,
+            channel_id=channel_id,
+            user_id=current_user.id,
+            message=message_text,
+            file_url=file_url,
+            file_name=file.filename,
+            file_size=len(content)
+        )
+
+        return {
+            "messages": [{
+                "id": message.id,
+                "channel_id": message.channel_id,
+                "user_id": message.user_id,
+                "message": message.message,
+                "response": None,
+                "provider": None,
+                "message_type": message.message_type,
+                "created_at": message.created_at
+            }]
+        }
 
 @router.get("/channels/stats", response_model=channel_schemas.ChannelStats)
 def get_channel_stats(

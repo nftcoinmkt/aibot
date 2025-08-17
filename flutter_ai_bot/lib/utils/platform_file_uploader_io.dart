@@ -35,8 +35,11 @@ class PlatformFileUploaderIO implements PlatformFileUploader {
       onPlaceholder(placeholder);
 
       try {
-        final message = await apiService.uploadFileInChannel(channelId, file);
-        onSuccess(message, tempId);
+        final messages = await apiService.uploadFileInChannel(channelId, file);
+        // For file upload, we expect user message + AI analysis
+        for (final message in messages) {
+          onSuccess(message, tempId);
+        }
       } catch (e) {
         onFailure(tempId);
       }
@@ -72,8 +75,11 @@ class PlatformFileUploaderIO implements PlatformFileUploader {
       onPlaceholder(placeholder);
 
       try {
-        final message = await apiService.uploadFileInChannel(channelId, imageFile);
-        onSuccess(message, tempId);
+        final messages = await apiService.uploadFileInChannel(channelId, imageFile);
+        // For image upload, we expect user message + AI analysis
+        for (final message in messages) {
+          onSuccess(message, tempId);
+        }
       } catch (e) {
         onFailure(tempId);
       }

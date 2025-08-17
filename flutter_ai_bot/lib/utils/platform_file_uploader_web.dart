@@ -34,12 +34,15 @@ class PlatformFileUploaderWeb implements PlatformFileUploader {
       onPlaceholder(placeholder);
 
       try {
-        final message = await apiService.uploadFileInChannelWeb(
+        final messages = await apiService.uploadFileInChannelWeb(
           channelId,
           result.files.single.bytes!,
           result.files.single.name,
         );
-        onSuccess(message, tempId);
+        // For file upload, we expect user message + AI analysis
+        for (final message in messages) {
+          onSuccess(message, tempId);
+        }
       } catch (e) {
         onFailure(tempId);
       }
@@ -70,12 +73,15 @@ class PlatformFileUploaderWeb implements PlatformFileUploader {
       onPlaceholder(placeholder);
 
       try {
-        final message = await apiService.uploadFileInChannelWeb(
+        final messages = await apiService.uploadFileInChannelWeb(
           channelId,
           mediaInfo.data!,
           mediaInfo.fileName!,
         );
-        onSuccess(message, tempId);
+        // For image upload, we expect user message + AI analysis
+        for (final message in messages) {
+          onSuccess(message, tempId);
+        }
       } catch (e) {
         onFailure(tempId);
       }

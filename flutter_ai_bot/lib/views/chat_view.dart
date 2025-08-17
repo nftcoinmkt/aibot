@@ -115,9 +115,9 @@ class _ChatViewState extends State<ChatView> {
           _messages.removeAt(index);
         }
 
-        // Add the messages in reverse order (AI response first, then user message)
-        // so they appear correctly in the UI (newest at top)
-        for (final message in messages.reversed) {
+        // Add the messages in chronological order (user message first, then AI response)
+        // The ListView is reversed, so newer messages appear at the top
+        for (final message in messages) {
           _messages.insert(0, message.copyWith(status: MessageStatus.sent));
           if (message.id > _lastMessageId) {
             _lastMessageId = message.id;
@@ -150,11 +150,15 @@ class _ChatViewState extends State<ChatView> {
           _messages.insert(0, placeholder);
         });
       }, (finalMessage, tempId) {
-        // Replace placeholder with final message
+        // Replace placeholder with final message or add new message
         setState(() {
           final index = _messages.indexWhere((m) => m.id == tempId);
           if (index != -1) {
+            // Replace placeholder with first message (user message)
             _messages[index] = finalMessage;
+          } else {
+            // Add additional messages (like AI response) at the top
+            _messages.insert(0, finalMessage);
           }
         });
       }, (tempId) {
@@ -186,7 +190,11 @@ class _ChatViewState extends State<ChatView> {
         setState(() {
           final index = _messages.indexWhere((m) => m.id == tempId);
           if (index != -1) {
+            // Replace placeholder with first message (user message)
             _messages[index] = finalMessage;
+          } else {
+            // Add additional messages (like AI response) at the top
+            _messages.insert(0, finalMessage);
           }
         });
       }, (tempId) {
@@ -424,19 +432,22 @@ class _ChatViewState extends State<ChatView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sender name
-          if (!isMe)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                _getSenderName(message, isMe, isAI),
-                style: TextStyle(
-                  color: isAI ? Colors.blue[700] : const Color(0xFF25D366),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+          // Sender name - show for all messages
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              _getSenderName(message, isMe, isAI),
+              style: TextStyle(
+                color: isAI
+                    ? Colors.blue[700]
+                    : isMe
+                        ? Colors.green[700]
+                        : const Color(0xFF25D366),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
+          ),
           if (message.attachment != null)
             _buildAttachmentView(message.attachment!),
           Row(

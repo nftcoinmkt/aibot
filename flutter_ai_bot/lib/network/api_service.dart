@@ -257,55 +257,46 @@ class ApiService {
     }
   }
 
-  // Placeholder for file upload for web. The API does not currently support this.
-  Future<ChatMessage> uploadFileInChannelWeb(int channelId, Uint8List fileBytes, String fileName) async {
+  Future<List<ChatMessage>> uploadFileInChannelWeb(int channelId, Uint8List fileBytes, String fileName) async {
     // Create a multipart request
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('$_baseUrl/channels/$channelId/upload'), // Assuming this endpoint
+      Uri.parse('$_baseUrl/channels/$channelId/upload'),
     );
     request.headers['Authorization'] = 'Bearer $_userToken';
     request.files.add(http.MultipartFile.fromBytes('file', fileBytes, filename: fileName));
 
-    // In a real implementation, you would send the request and handle the response.
-    // For now, we'll simulate a response.
-    print('Simulating web file upload for: $fileName');
-    await Future.delayed(const Duration(seconds: 2)); // Simulate network delay
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
 
-    // This is a mock response. The actual API would return something different.
-    return ChatMessage(
-      id: DateTime.now().millisecondsSinceEpoch,
-      channelId: channelId,
-      userId: _userId!,
-      message: 'File: $fileName', // Placeholder message
-      timestamp: DateTime.now(),
-      attachment: Attachment(id: '1', fileUrl: '', fileName: fileName, fileType: 'file'),
-    );
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      final List<dynamic> messagesJson = responseData['messages'];
+      return messagesJson.map((json) => ChatMessage.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to upload file: ${response.body}');
+    }
   }
 
-  // Placeholder for file upload. The API does not currently support this.
-  Future<ChatMessage> uploadFileInChannel(int channelId, File file) async {
+  Future<List<ChatMessage>> uploadFileInChannel(int channelId, File file) async {
     // Create a multipart request
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('$_baseUrl/channels/$channelId/upload'), // Assuming this endpoint
+      Uri.parse('$_baseUrl/channels/$channelId/upload'),
     );
     request.headers['Authorization'] = 'Bearer $_userToken';
     request.files.add(await http.MultipartFile.fromPath('file', file.path));
 
-    // In a real implementation, you would send the request and handle the response.
-    // For now, we'll simulate a response.
-    print('Simulating file upload for: ${file.path}');
-    await Future.delayed(Duration(seconds: 2)); // Simulate network delay
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
 
-    // This is a mock response. The actual API would return something different.
-    return ChatMessage(
-      id: DateTime.now().millisecondsSinceEpoch,
-      channelId: channelId,
-      userId: _userId!,
-      message: 'File: ${file.path.split('/').last}', // Placeholder message
-      timestamp: DateTime.now(),
-    );
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      final List<dynamic> messagesJson = responseData['messages'];
+      return messagesJson.map((json) => ChatMessage.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to upload file: ${response.body}');
+    }
   }
 
 

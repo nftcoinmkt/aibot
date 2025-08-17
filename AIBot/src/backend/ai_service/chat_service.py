@@ -296,6 +296,92 @@ class ChatService:
                 channel_id
             )
 
+    def process_file_upload(
+        self,
+        user_id: int,
+        tenant_name: str,
+        channel_id: int,
+        file_path: str,
+        file_url: str,
+        file_name: str,
+        message_text: str,
+        analysis_prompt: str
+    ) -> List[dict]:
+        """Process file upload and generate AI analysis."""
+        # Get tenant-specific database session
+        db_generator = get_tenant_db(tenant_name)
+        db = next(db_generator)
+
+        try:
+            # Save user message with file
+            user_message = ChannelMessage(
+                channel_id=channel_id,
+                user_id=user_id,
+                message=message_text,
+                message_type="user",
+                created_at=datetime.utcnow()
+            )
+            db.add(user_message)
+            db.commit()
+            db.refresh(user_message)
+
+            # Get AI analysis of the file
+            try:
+                if settings.AI_PROVIDER == 'groq':
+                    ai_response = self.groq_provider.analyze_file(file_path, analysis_prompt)
+                elif settings.AI_PROVIDER == 'gemini':
+                    ai_response = self.gemini_provider.analyze_file(file_path, analysis_prompt)
+                else:
+                    ai_response = "File uploaded successfully, but AI analysis is not available."
+
+                provider = settings.AI_PROVIDER
+            except Exception as e:
+                print(f"AI analysis failed: {str(e)}")
+                ai_response = f"File uploaded successfully! I can see you've shared {file_name}. Unfortunately, I encountered an issue analyzing it: {str(e)}"
+                provider = settings.AI_PROVIDER
+
+            # Save AI response
+            ai_message = ChannelMessage(
+                channel_id=channel_id,
+                user_id=-1,  # AI user ID
+                message=ai_response,
+                response=ai_response,
+                provider=provider,
+                message_type="ai",
+                created_at=datetime.utcnow()
+            )
+            db.add(ai_message)
+            db.commit()
+            db.refresh(ai_message)
+
+            # Convert to response format before closing the session
+            messages = [
+                {
+                    "id": user_message.id,
+                    "channel_id": user_message.channel_id,
+                    "user_id": user_message.user_id,
+                    "message": user_message.message,
+                    "response": None,
+                    "provider": None,
+                    "message_type": user_message.message_type,
+                    "created_at": user_message.created_at
+                },
+                {
+                    "id": ai_message.id,
+                    "channel_id": ai_message.channel_id,
+                    "user_id": ai_message.user_id,
+                    "message": ai_message.message,
+                    "response": ai_message.response,
+                    "provider": ai_message.provider,
+                    "message_type": ai_message.message_type,
+                    "created_at": ai_message.created_at
+                }
+            ]
+
+            return messages
+        finally:
+            db.close()
+
 
 # Global chat service instance
 chat_service = ChatService()

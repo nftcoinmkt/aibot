@@ -732,6 +732,43 @@
               ]
             }
           }
+        },
+        {
+          "name": "Upload File to Channel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/channels/1/upload",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "1",
+                "upload"
+              ]
+            },
+            "description": "Upload a file (image or PDF) to a channel for AI analysis"
+          }
         }
       ]
     },
