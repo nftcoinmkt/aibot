@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     TENANT_DATABASE_PATH: str = "./tenant_databases/"
     
     # AI Service settings
-    AI_PROVIDER: str = "gemini"  # "groq" or "gemini"
+    AI_PROVIDER: str = "groq"  # "groq" or "gemini"
     GROQ_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
 
@@ -36,6 +36,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Debug: Print API key status on startup
+print(f"Settings loaded - AI_PROVIDER: {settings.GEMINI_API_KEY}")
+print(f"GROQ_API_KEY loaded: {'Yes' if settings.GROQ_API_KEY else 'No'}")
+print(f"GEMINI_API_KEY loaded: {'Yes' if settings.GEMINI_API_KEY else 'No'}")
 
 
 def get_tenant_database_uri(tenant_name: str) -> str:

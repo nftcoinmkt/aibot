@@ -36,7 +36,7 @@ def call_groq(message: str) -> str:
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 def call_gemini(message: str) -> str:
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-2.5-pro-preview-06-05')
     response = model.generate_content(message)
     return response.text
 
