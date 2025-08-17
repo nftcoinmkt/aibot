@@ -36,9 +36,12 @@ def chat_in_channel(
     """
     Chat with AI in a specific channel. Returns both user message and AI response.
     """
-    messages = chat_service.process_channel_message(
+    message_dicts = chat_service.process_channel_message(
         current_user.id, current_user.tenant_name, request.message, channel_id
     )
+
+    # Convert dictionaries to schema objects
+    messages = [schemas.ChatMessageResponse(**msg_dict) for msg_dict in message_dicts]
 
     return {"messages": messages}
 

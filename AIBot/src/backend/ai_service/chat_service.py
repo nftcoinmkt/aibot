@@ -132,7 +132,7 @@ class ChatService:
         tenant_name: str,
         message: str,
         channel_id: int
-    ) -> Tuple[ChannelMessage, ChannelMessage]:
+    ) -> List[dict]:
         """Process channel message and return both user message and AI response as separate objects."""
         # Get AI response
         inputs = {
@@ -176,7 +176,31 @@ class ChatService:
             db.commit()
             db.refresh(ai_message)
 
-            return user_message, ai_message
+            # Convert to response format before closing the session
+            messages = [
+                {
+                    "id": user_message.id,
+                    "channel_id": user_message.channel_id,
+                    "user_id": user_message.user_id,
+                    "message": user_message.message,
+                    "response": None,
+                    "provider": None,
+                    "message_type": user_message.message_type,
+                    "created_at": user_message.created_at
+                },
+                {
+                    "id": ai_message.id,
+                    "channel_id": ai_message.channel_id,
+                    "user_id": ai_message.user_id,
+                    "message": ai_message.message,
+                    "response": ai_message.response,
+                    "provider": ai_message.provider,
+                    "message_type": ai_message.message_type,
+                    "created_at": ai_message.created_at
+                }
+            ]
+
+            return messages
         finally:
             db.close()
 
