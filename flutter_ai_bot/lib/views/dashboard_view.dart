@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_ai_bot/network/api_service.dart';
 import 'package:flutter_ai_bot/models/user_model.dart';
+import 'package:flutter_ai_bot/models/channel_model.dart';
+import 'package:flutter_ai_bot/models/chat_message_model.dart';
 
 class DashboardView extends StatefulWidget {
   final ApiService apiService;
@@ -16,6 +18,8 @@ class _DashboardViewState extends State<DashboardView> {
   User? _currentUser;
   bool _isLoading = true;
   String _welcomeMessage = '';
+  List<Channel> _recentChannels = [];
+  List<ChatMessage> _recentMessages = [];
 
   @override
   void initState() {
@@ -25,12 +29,28 @@ class _DashboardViewState extends State<DashboardView> {
 
   Future<void> _loadUserData() async {
     try {
-      // In a real app, you'd fetch user data from the API
-      // For now, we'll simulate it
-      await Future.delayed(const Duration(seconds: 1));
-      
+      // Load recent channels and messages
+      final channels = await widget.apiService.getChannels();
+      final recentChannels = channels.take(3).toList();
+
+      // Load recent messages from the first channel if available
+      List<ChatMessage> recentMessages = [];
+      if (recentChannels.isNotEmpty) {
+        try {
+          recentMessages = await widget.apiService.getChannelMessages(
+            recentChannels.first.id,
+            daysBack: 1
+          );
+          recentMessages = recentMessages.take(5).toList();
+        } catch (e) {
+          print('Failed to load recent messages: $e');
+        }
+      }
+
       setState(() {
         _welcomeMessage = 'Welcome back!';
+        _recentChannels = recentChannels;
+        _recentMessages = recentMessages;
         _isLoading = false;
       });
     } catch (e) {
@@ -69,6 +89,8 @@ class _DashboardViewState extends State<DashboardView> {
                   _buildWelcomeCard(),
                   const SizedBox(height: 20),
                   _buildQuickActions(),
+                  const SizedBox(height: 24),
+                  _buildRecentChannels(),
                   const SizedBox(height: 24),
                   _buildRecentActivity(),
                 ],
@@ -258,12 +280,106 @@ class _DashboardViewState extends State<DashboardView> {
     );
   }
 
+  Widget _buildRecentChannels() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Recent Channels',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1F2937),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_recentChannels.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Text(
+                'No channels yet. Create your first channel!',
+                style: TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          )
+        else
+          ...(_recentChannels.map((channel) => Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF25D366).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  CupertinoIcons.chat_bubble_2,
+                  color: Color(0xFF25D366),
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                channel.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+              subtitle: Text(
+                channel.description ?? 'No description',
+                style: const TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 14,
+                ),
+              ),
+              trailing: const Icon(
+                CupertinoIcons.chevron_right,
+                color: Color(0xFF9CA3AF),
+                size: 16,
+              ),
+              onTap: () {
+                Navigator.pushNamed(context, '/channels');
+              },
+            ),
+          ))),
+      ],
+    );
+  }
+
   Widget _buildRecentActivity() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Recent Activity',
+          'Recent Messages',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -285,18 +401,46 @@ class _DashboardViewState extends State<DashboardView> {
             ],
           ),
           child: Column(
-            children: [
-              _buildActivityItem(
-                icon: CupertinoIcons.chat_bubble_2,
-                title: 'No recent messages',
-                subtitle: 'Start a conversation in a channel',
-                time: '',
-              ),
-            ],
+            children: _recentMessages.isEmpty
+                ? [
+                    _buildActivityItem(
+                      icon: CupertinoIcons.chat_bubble_2,
+                      title: 'No recent messages',
+                      subtitle: 'Start a conversation in a channel',
+                      time: '',
+                    ),
+                  ]
+                : _recentMessages.map((message) => _buildActivityItem(
+                    icon: message.userId == -1
+                        ? CupertinoIcons.gear_alt
+                        : CupertinoIcons.person,
+                    title: message.userId == -1
+                        ? 'AI Bot'
+                        : 'You',
+                    subtitle: message.message.length > 50
+                        ? '${message.message.substring(0, 50)}...'
+                        : message.message,
+                    time: _formatTime(message.timestamp),
+                  )).toList(),
           ),
         ),
       ],
     );
+  }
+
+  String _formatTime(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${difference.inDays}d ago';
+    }
   }
 
   Widget _buildActivityItem({

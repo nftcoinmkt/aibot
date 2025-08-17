@@ -6,11 +6,11 @@ import uuid
 from pathlib import Path
 
 from src.backend.auth.schemas import User
-from src.backend.auth.authentication_service import get_current_active_user, get_current_active_superuser
-from src.backend.shared.database_manager import get_default_db
-from .channel_service import channel_service
+from src.backend.auth.authentication_service import get_current_active_user, get_current_active_superuser, get_current_active_superuser
+from src.backend.shared.database_manager import get_default_db, get_tenant_db
+from src.backend.channels.service import channel_service
 from .chat_service import chat_service
-from . import channel_schemas
+from src.backend.channels import schemas as channel_schemas
 
 router = APIRouter()
 
@@ -173,51 +173,69 @@ def get_channel_messages(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     days_back: int = Query(2, ge=1, le=30),
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get recent messages from a specific channel (default: last 2 days).
     """
-    messages = channel_service.get_channel_messages(
-        db,
-        channel_id,
-        skip=skip,
-        limit=limit,
-        days_back=days_back
-    )
-    return messages
+    # Use tenant-specific database
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+
+    try:
+        messages = channel_service.get_channel_messages(
+            db,
+            channel_id,
+            skip=skip,
+            limit=limit,
+            days_back=days_back
+        )
+        return messages
+    finally:
+        db.close()
 
 @router.get("/channels/{channel_id}/messages/all", response_model=List[channel_schemas.ChannelMessage])
 def get_all_channel_messages(
     channel_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get all messages from a specific channel (including archived).
     """
-    messages = channel_service.get_all_channel_messages(
-        db,
-        channel_id,
-        skip=skip,
-        limit=limit
-    )
-    return messages
+    # Use tenant-specific database
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+
+    try:
+        messages = channel_service.get_all_channel_messages(
+            db,
+            channel_id,
+            skip=skip,
+            limit=limit
+        )
+        return messages
+    finally:
+        db.close()
 
 @router.post("/channels/archive")
 def archive_old_messages(
     days_old: int = Query(7, ge=1, le=365),
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_superuser)
 ):
     """
     Archive messages older than specified days (admin only).
     """
-    archived_count = channel_service.archive_old_messages(db, days_old)
-    return {"message": f"Archived {archived_count} messages older than {days_old} days"}
+    # Use tenant-specific database
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+
+    try:
+        archived_count = channel_service.archive_old_messages(db, days_old)
+        return {"message": f"Archived {archived_count} messages older than {days_old} days"}
+    finally:
+        db.close()
 
 @router.post("/channels/{channel_id}/upload")
 async def upload_file_to_channel(

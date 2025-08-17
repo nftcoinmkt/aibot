@@ -37,12 +37,25 @@ class ChatMessage {
   }
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    // Create attachment from file fields if they exist
+    Attachment? attachment;
+    if (json['file_url'] != null && json['file_name'] != null) {
+      attachment = Attachment(
+        id: json['id']?.toString() ?? '0',
+        fileName: json['file_name'],
+        fileUrl: json['file_url'],
+        fileType: json['file_type'] ?? '',
+      );
+    } else if (json['attachment'] != null) {
+      attachment = Attachment.fromJson(json['attachment']);
+    }
+
     return ChatMessage(
       id: json['id'] ?? 0,
       channelId: json['channelId'] ?? json['channel_id'] ?? 0,
       userId: json['userId'] ?? json['user_id'] ?? -1, // Use -1 for AI messages
       message: json['message'] ?? json['response'] ?? '',
-      attachment: json['attachment'] != null ? Attachment.fromJson(json['attachment']) : null,
+      attachment: attachment,
       status: MessageStatus.sent, // Default status for incoming messages
       timestamp: DateTime.tryParse(json['timestamp'] ?? json['created_at'] ?? '') ?? DateTime.now(),
     );

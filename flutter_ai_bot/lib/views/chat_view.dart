@@ -8,8 +8,11 @@ import 'dart:async';
 import 'package:flutter_ai_bot/utils/platform_file_uploader.dart';
 import 'package:flutter_ai_bot/views/channel_details_view.dart';
 import 'package:flutter_ai_bot/widgets/file_preview_dialog.dart';
+import 'package:flutter_ai_bot/widgets/file_upload_dialog.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:path/path.dart' as path;
 
 
@@ -167,7 +170,8 @@ class _ChatViewState extends State<ChatView> {
 
 
   void _pickFile() async {
-    final tempId = DateTime.now().millisecondsSinceEpoch;
+    if (!mounted) return;
+
     try {
       await _fileUploader.pickFile(widget.apiService, widget.channel.id, (placeholder) {
         // Add placeholder
@@ -236,6 +240,129 @@ class _ChatViewState extends State<ChatView> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick image: $e')),
       );
+    }
+  }
+
+  void _pickFileWithText() async {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => FileUploadDialog(
+        title: 'Upload File with Message',
+        fileType: 'file',
+        onUpload: (text, fileData, fileName) async {
+          await _uploadFile(text, fileData, fileName);
+        },
+      ),
+    );
+  }
+
+  void _pickImageWithText() async {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => FileUploadDialog(
+        title: 'Upload Image with Message',
+        fileType: 'image',
+        onUpload: (text, fileData, fileName) async {
+          await _uploadFile(text, fileData, fileName);
+        },
+      ),
+    );
+  }
+
+  Future<void> _uploadFile(String? text, dynamic fileData, String fileName) async {
+    if (!mounted) return;
+
+    // Create placeholder message
+    final tempId = DateTime.now().millisecondsSinceEpoch;
+    final placeholderText = text?.isNotEmpty == true
+        ? '$text\n\n📎 Uploading $fileName...'
+        : '📎 Uploading $fileName...';
+
+    final placeholder = ChatMessage(
+      id: tempId,
+      channelId: widget.channel.id,
+      userId: _currentUserId!,
+      message: placeholderText,
+      timestamp: DateTime.now(),
+      status: MessageStatus.sending,
+    );
+
+    setState(() {
+      _messages.insert(0, placeholder);
+    });
+
+    try {
+      List<ChatMessage> messages;
+
+      if (Platform.isAndroid || Platform.isIOS) {
+        // Mobile: fileData is a File
+        messages = await widget.apiService.uploadFileInChannel(widget.channel.id, fileData as File);
+      } else {
+        // Web: fileData is Uint8List
+        messages = await widget.apiService.uploadFileInChannelWeb(
+          widget.channel.id,
+          fileData as Uint8List,
+          fileName
+        );
+      }
+
+      // If user provided text, update the user message to include it
+      if (text?.isNotEmpty == true && messages.isNotEmpty) {
+        final userMessage = messages.first;
+        final updatedUserMessage = ChatMessage(
+          id: userMessage.id,
+          channelId: userMessage.channelId,
+          userId: userMessage.userId,
+          message: '$text\n\n${userMessage.message}',
+          attachment: userMessage.attachment,
+          status: userMessage.status,
+          timestamp: userMessage.timestamp,
+        );
+        messages[0] = updatedUserMessage;
+      }
+
+      setState(() {
+        // Remove placeholder
+        _messages.removeWhere((m) => m.id == tempId);
+
+        // Add all messages (user + AI response)
+        for (final message in messages) {
+          _messages.insert(0, message.copyWith(status: MessageStatus.sent));
+          if (message.id > _lastMessageId) {
+            _lastMessageId = message.id;
+          }
+        }
+      });
+
+    } catch (e) {
+      // Mark as failed
+      setState(() {
+        final index = _messages.indexWhere((m) => m.id == tempId);
+        if (index != -1) {
+          final failedMessage = ChatMessage(
+            id: placeholder.id,
+            channelId: placeholder.channelId,
+            userId: placeholder.userId,
+            message: text?.isNotEmpty == true
+                ? '$text\n\n❌ Failed to upload $fileName'
+                : '❌ Failed to upload $fileName',
+            attachment: placeholder.attachment,
+            status: MessageStatus.failed,
+            timestamp: placeholder.timestamp,
+          );
+          _messages[index] = failedMessage;
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload file: $e')),
+        );
+      }
     }
   }
 
@@ -328,12 +455,13 @@ class _ChatViewState extends State<ChatView> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFFE5DDD5),
-          ),
+      body: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFE5DDD5),
+        ),
+        child: SafeArea(
           child: Column(
+            mainAxisSize: MainAxisSize.max,
             children: [
               Expanded(
                 child: _isLoading
@@ -375,7 +503,10 @@ class _ChatViewState extends State<ChatView> {
               ),
               Container(
                 color: Colors.white,
-                child: _buildMessageComposer(),
+                child: SafeArea(
+                  top: false,
+                  child: _buildMessageComposer(),
+                ),
               ),
             ],
           ),
@@ -679,13 +810,22 @@ class _ChatViewState extends State<ChatView> {
                         style: const TextStyle(fontSize: 16),
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(CupertinoIcons.paperclip, color: Colors.grey[600]),
-                      onPressed: _pickFile,
+                    Tooltip(
+                      message: 'Tap: Upload file\nLong press: Upload with message',
+                      child: GestureDetector(
+                        onTap: _pickFile,
+                        onLongPress: _pickFileWithText,
+                        child: Icon(CupertinoIcons.paperclip, color: Colors.grey[600], size: 24),
+                      ),
                     ),
-                    IconButton(
-                      icon: Icon(CupertinoIcons.camera, color: Colors.grey[600]),
-                      onPressed: _pickImage,
+                    const SizedBox(width: 8),
+                    Tooltip(
+                      message: 'Tap: Upload image\nLong press: Upload with message',
+                      child: GestureDetector(
+                        onTap: _pickImage,
+                        onLongPress: _pickImageWithText,
+                        child: Icon(CupertinoIcons.camera, color: Colors.grey[600], size: 24),
+                      ),
                     ),
                   ],
                 ),

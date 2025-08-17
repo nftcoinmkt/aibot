@@ -40,6 +40,25 @@ def migrate_database(db_path):
             cursor.execute("ALTER TABLE channel_messages ADD COLUMN is_archived BOOLEAN DEFAULT 0")
             print("  Added is_archived column")
 
+        # Check and update channels table
+        cursor.execute("PRAGMA table_info(channels)")
+        channel_columns = [column[1] for column in cursor.fetchall()]
+
+        # Add missing columns to channels table
+        if 'is_private' not in channel_columns:
+            cursor.execute("ALTER TABLE channels ADD COLUMN is_private BOOLEAN DEFAULT 0")
+            print("  Added is_private column to channels")
+
+        if 'max_members' not in channel_columns:
+            cursor.execute("ALTER TABLE channels ADD COLUMN max_members INTEGER DEFAULT 100")
+            print("  Added max_members column to channels")
+
+        if 'updated_at' not in channel_columns:
+            cursor.execute("ALTER TABLE channels ADD COLUMN updated_at DATETIME")
+            # Set updated_at to created_at for existing records
+            cursor.execute("UPDATE channels SET updated_at = created_at WHERE updated_at IS NULL")
+            print("  Added updated_at column to channels")
+
         conn.commit()
         print(f"  Migration completed successfully for {db_path}")
         

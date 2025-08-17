@@ -69,8 +69,8 @@ app.include_router(auth_router.router, prefix=settings.API_V1_STR, tags=["auth"]
 app.include_router(ai_router.router, prefix=settings.API_V1_STR, tags=["ai_service"])
 
 # Import and include channel router
-from src.backend.ai_service import channel_router
-app.include_router(channel_router.router, prefix=settings.API_V1_STR, tags=["channels"])
+from src.backend.channels import router as channels_router
+app.include_router(channels_router.router, prefix=settings.API_V1_STR, tags=["channels"])
 
 # Mount static files for uploads
 import os

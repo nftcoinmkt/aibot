@@ -8,7 +8,7 @@ from datetime import datetime
 from src.backend.core.settings import settings
 from src.backend.shared.database_manager import get_tenant_db
 from .models import ChatMessage
-from .channel_models import ChannelMessage
+from src.backend.channels.models import ChannelMessage
 from .ai_providers import GroqProvider, GeminiProvider
 from tenacity import retry, stop_after_attempt, wait_exponential
 
