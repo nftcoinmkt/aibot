@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_ai_bot/models/attachment_model.dart';
 import 'package:flutter_ai_bot/models/channel_model.dart';
 import 'package:flutter_ai_bot/models/chat_message_model.dart';
@@ -10,6 +11,8 @@ import 'package:flutter_ai_bot/views/channel_details_view.dart';
 import 'package:flutter_ai_bot/widgets/file_preview_dialog.dart';
 import 'package:flutter_ai_bot/widgets/file_upload_dialog.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:cross_file/cross_file.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -35,6 +38,11 @@ class _ChatViewState extends State<ChatView> {
   bool _showingAllMessages = false;
   final PlatformFileUploader _fileUploader = getPlatformFileUploader();
   int _lastMessageId = 0;
+
+  // File attachment state
+  dynamic _selectedFile;
+  String _selectedFileName = '';
+  String _selectedFileType = '';
 
   @override
   void initState() {
@@ -106,7 +114,16 @@ class _ChatViewState extends State<ChatView> {
   }
 
   void _sendMessage() async {
-    if (_controller.text.isEmpty) return;
+    final text = _controller.text.trim();
+
+    // Check if we have a file to upload
+    if (_selectedFile != null) {
+      await _sendMessageWithFile(text);
+      return;
+    }
+
+    // Regular text message
+    if (text.isEmpty) return;
     if (_currentUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('User not authenticated')),
@@ -116,6 +133,9 @@ class _ChatViewState extends State<ChatView> {
 
     final messageText = _controller.text;
     _controller.clear();
+    setState(() {
+      _isTyping = false;
+    });
 
     // Create a temporary message to show immediately
     final tempMessage = ChatMessage(
@@ -168,119 +188,21 @@ class _ChatViewState extends State<ChatView> {
     }
   }
 
+  Future<void> _sendMessageWithFile(String text) async {
+    if (_selectedFile == null) return;
 
-  void _pickFile() async {
-    if (!mounted) return;
+    final messageText = text.isNotEmpty ? text : '';
 
-    try {
-      await _fileUploader.pickFile(widget.apiService, widget.channel.id, (placeholder) {
-        // Add placeholder
-        setState(() {
-          _messages.insert(0, placeholder);
-        });
-      }, (finalMessage, tempId) {
-        // Replace placeholder with final message or add new message
-        setState(() {
-          final index = _messages.indexWhere((m) => m.id == tempId);
-          if (index != -1) {
-            // Replace placeholder with first message (user message)
-            _messages[index] = finalMessage;
-          } else {
-            // Add additional messages (like AI response) at the top
-            _messages.insert(0, finalMessage);
-          }
-        });
-      }, (tempId) {
-        // Handle failure
-        setState(() {
-          final index = _messages.indexWhere((m) => m.id == tempId);
-          if (index != -1) {
-            final failedMessage = _messages[index].copyWith(status: MessageStatus.failed);
-            _messages[index] = failedMessage;
-          }
-        });
-      });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick file: $e')),
-      );
-    }
-  }
-
-
-  void _pickImage() async {
-    try {
-      await _fileUploader.pickImage(widget.apiService, widget.channel.id, (placeholder) {
-        setState(() {
-          _messages.insert(0, placeholder);
-        });
-      }, (finalMessage, tempId) {
-        setState(() {
-          final index = _messages.indexWhere((m) => m.id == tempId);
-          if (index != -1) {
-            // Replace placeholder with first message (user message)
-            _messages[index] = finalMessage;
-          } else {
-            // Add additional messages (like AI response) at the top
-            _messages.insert(0, finalMessage);
-          }
-        });
-      }, (tempId) {
-        setState(() {
-          final index = _messages.indexWhere((m) => m.id == tempId);
-          if (index != -1) {
-            final failedMessage = _messages[index].copyWith(status: MessageStatus.failed);
-            _messages[index] = failedMessage;
-          }
-        });
-      }, context);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick image: $e')),
-      );
-    }
-  }
-
-  void _pickFileWithText() async {
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => FileUploadDialog(
-        title: 'Upload File with Message',
-        fileType: 'file',
-        onUpload: (text, fileData, fileName) async {
-          await _uploadFile(text, fileData, fileName);
-        },
-      ),
-    );
-  }
-
-  void _pickImageWithText() async {
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => FileUploadDialog(
-        title: 'Upload Image with Message',
-        fileType: 'image',
-        onUpload: (text, fileData, fileName) async {
-          await _uploadFile(text, fileData, fileName);
-        },
-      ),
-    );
-  }
-
-  Future<void> _uploadFile(String? text, dynamic fileData, String fileName) async {
-    if (!mounted) return;
+    _controller.clear();
+    setState(() {
+      _isTyping = false;
+    });
 
     // Create placeholder message
     final tempId = DateTime.now().millisecondsSinceEpoch;
-    final placeholderText = text?.isNotEmpty == true
-        ? '$text\n\n📎 Uploading $fileName...'
-        : '📎 Uploading $fileName...';
+    final placeholderText = messageText.isNotEmpty
+        ? '$messageText\n\n📎 Uploading $_selectedFileName...'
+        : '📎 Uploading $_selectedFileName...';
 
     final placeholder = ChatMessage(
       id: tempId,
@@ -298,26 +220,44 @@ class _ChatViewState extends State<ChatView> {
     try {
       List<ChatMessage> messages;
 
-      if (Platform.isAndroid || Platform.isIOS) {
-        // Mobile: fileData is a File
-        messages = await widget.apiService.uploadFileInChannel(widget.channel.id, fileData as File);
-      } else {
-        // Web: fileData is Uint8List
+      if (kIsWeb) {
+        // Web platform
+        Uint8List bytes;
+        if (_selectedFile is Uint8List) {
+          // File picker result
+          bytes = _selectedFile as Uint8List;
+        } else if (_selectedFile is XFile) {
+          // Image picker result
+          bytes = await (_selectedFile as XFile).readAsBytes();
+        } else {
+          throw Exception('Unsupported file type for web');
+        }
+
         messages = await widget.apiService.uploadFileInChannelWeb(
           widget.channel.id,
-          fileData as Uint8List,
-          fileName
+          bytes,
+          _selectedFileName
         );
+      } else {
+        // Mobile platforms
+        File file;
+        if (_selectedFile is File) {
+          file = _selectedFile as File;
+        } else {
+          throw Exception('Expected File object for mobile platform');
+        }
+
+        messages = await widget.apiService.uploadFileInChannel(widget.channel.id, file);
       }
 
       // If user provided text, update the user message to include it
-      if (text?.isNotEmpty == true && messages.isNotEmpty) {
+      if (messageText.isNotEmpty && messages.isNotEmpty) {
         final userMessage = messages.first;
         final updatedUserMessage = ChatMessage(
           id: userMessage.id,
           channelId: userMessage.channelId,
           userId: userMessage.userId,
-          message: '$text\n\n${userMessage.message}',
+          message: '$messageText\n\n${userMessage.message}',
           attachment: userMessage.attachment,
           status: userMessage.status,
           timestamp: userMessage.timestamp,
@@ -336,6 +276,11 @@ class _ChatViewState extends State<ChatView> {
             _lastMessageId = message.id;
           }
         }
+
+        // Clear selected file
+        _selectedFile = null;
+        _selectedFileName = '';
+        _selectedFileType = '';
       });
 
     } catch (e) {
@@ -347,9 +292,9 @@ class _ChatViewState extends State<ChatView> {
             id: placeholder.id,
             channelId: placeholder.channelId,
             userId: placeholder.userId,
-            message: text?.isNotEmpty == true
-                ? '$text\n\n❌ Failed to upload $fileName'
-                : '❌ Failed to upload $fileName',
+            message: messageText.isNotEmpty
+                ? '$messageText\n\n❌ Failed to upload $_selectedFileName'
+                : '❌ Failed to upload $_selectedFileName',
             attachment: placeholder.attachment,
             status: MessageStatus.failed,
             timestamp: placeholder.timestamp,
@@ -365,6 +310,124 @@ class _ChatViewState extends State<ChatView> {
       }
     }
   }
+
+  void _pickFile() async {
+    if (!mounted) return;
+
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'txt'],
+      );
+
+      if (result != null) {
+        setState(() {
+          // Handle platform differences
+          if (kIsWeb) {
+            // Web platform
+            if (result.files.single.bytes != null) {
+              _selectedFile = result.files.single.bytes!;
+            } else {
+              throw Exception('File bytes are null on web platform');
+            }
+          } else {
+            // Mobile platforms (Android/iOS)
+            if (result.files.single.path != null) {
+              _selectedFile = File(result.files.single.path!);
+            } else {
+              throw Exception('File path is null on mobile platform');
+            }
+          }
+          _selectedFileName = result.files.single.name;
+          _selectedFileType = 'file';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      print('File picker error: $e'); // Debug log
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to pick file: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+
+  void _pickImage() async {
+    if (!mounted) return;
+
+    try {
+      final ImagePicker picker = ImagePicker();
+
+      ImageSource? source;
+
+      if (kIsWeb) {
+        // On web, only gallery is available
+        source = ImageSource.gallery;
+      } else {
+        // Show image source selection for mobile
+        source = await showDialog<ImageSource>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Select Image Source'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(CupertinoIcons.camera),
+                  title: const Text('Camera'),
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                ),
+                ListTile(
+                  leading: const Icon(CupertinoIcons.photo),
+                  title: const Text('Gallery'),
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      if (source != null) {
+        final XFile? image = await picker.pickImage(source: source);
+        if (image != null) {
+          setState(() {
+            if (kIsWeb) {
+              // For web, we'll need to read bytes
+              _selectedFile = image; // Store XFile for web
+            } else {
+              // For mobile, use File
+              _selectedFile = File(image.path);
+            }
+            _selectedFileName = image.name;
+            _selectedFileType = 'image';
+          });
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      print('Image picker error: $e'); // Debug log
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to pick image: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _clearSelectedFile() {
+    setState(() {
+      _selectedFile = null;
+      _selectedFileName = '';
+      _selectedFileType = '';
+    });
+  }
+
+
 
 
   @override
@@ -776,78 +839,139 @@ class _ChatViewState extends State<ChatView> {
   Widget _buildMessageComposer() {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-      child: Row(
+      child: Column(
         children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(25),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(CupertinoIcons.smiley, color: Colors.grey[600]),
-                      onPressed: () {},
-                    ),
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        maxLines: null,
-                        decoration: const InputDecoration(
-                          hintText: 'Type a message',
-                          hintStyle: TextStyle(color: Colors.grey),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    ),
-                    Tooltip(
-                      message: 'Tap: Upload file\nLong press: Upload with message',
-                      child: GestureDetector(
-                        onTap: _pickFile,
-                        onLongPress: _pickFileWithText,
-                        child: Icon(CupertinoIcons.paperclip, color: Colors.grey[600], size: 24),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Tooltip(
-                      message: 'Tap: Upload image\nLong press: Upload with message',
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        onLongPress: _pickImageWithText,
-                        child: Icon(CupertinoIcons.camera, color: Colors.grey[600], size: 24),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
+          // File attachment preview
+          if (_selectedFile != null)
             Container(
-              width: 45,
-              height: 45,
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _isTyping ? const Color(0xFF25D366) : Colors.grey[400],
-                borderRadius: BorderRadius.circular(22.5),
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[300]!),
               ),
-              child: IconButton(
-                onPressed: _isTyping ? _sendMessage : null,
-                icon: Icon(
-                  _isTyping ? CupertinoIcons.paperplane_fill : CupertinoIcons.mic_fill,
-                  color: Colors.white,
-                  size: 20,
-                ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _selectedFileType == 'image'
+                          ? Colors.blue.withOpacity(0.1)
+                          : Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      _selectedFileType == 'image'
+                          ? CupertinoIcons.photo
+                          : CupertinoIcons.doc_text,
+                      color: _selectedFileType == 'image' ? Colors.blue : Colors.red,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectedFileName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          _selectedFileType == 'image' ? 'Image' : 'Document',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(CupertinoIcons.xmark_circle_fill, color: Colors.grey[600]),
+                    onPressed: _clearSelectedFile,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
               ),
             ),
+
+          // Message input row
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(CupertinoIcons.smiley, color: Colors.grey[600]),
+                        onPressed: () {},
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          maxLines: null,
+                          decoration: InputDecoration(
+                            hintText: _selectedFile != null
+                                ? 'Add a message...'
+                                : 'Type a message',
+                            hintStyle: const TextStyle(color: Colors.grey),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(CupertinoIcons.paperclip, color: Colors.grey[600]),
+                        onPressed: _pickFile,
+                      ),
+                      IconButton(
+                        icon: Icon(CupertinoIcons.camera, color: Colors.grey[600]),
+                        onPressed: _pickImage,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 45,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: (_isTyping || _selectedFile != null) ? const Color(0xFF25D366) : Colors.grey[400],
+                  borderRadius: BorderRadius.circular(22.5),
+                ),
+                child: IconButton(
+                  onPressed: (_isTyping || _selectedFile != null) ? _sendMessage : null,
+                  icon: Icon(
+                    (_isTyping || _selectedFile != null) ? CupertinoIcons.paperplane_fill : CupertinoIcons.mic_fill,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
