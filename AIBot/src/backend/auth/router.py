@@ -42,6 +42,7 @@ def login_access_token(
     return {
         "access_token": access_token,
         "token_type": "bearer",
+        "user_id": user.id,  # Include user ID in response
     }
 
 @router.post("/forgot-password", response_model=schemas.Msg)

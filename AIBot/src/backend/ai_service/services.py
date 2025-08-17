@@ -3,7 +3,7 @@ from langgraph.graph import StateGraph, END
 from typing import TypedDict, Annotated, Tuple
 import os
 from sqlalchemy.orm import Session
-from src.Backend.core.config import settings
+from src.backend.core.settings import settings
 from groq import Groq
 import google.generativeai as genai
 from tenacity import retry, stop_after_attempt, wait_exponential

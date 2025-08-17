@@ -8,17 +8,14 @@ import '../models/attachment_model.dart';
 import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:typed_data';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter/foundation.dart';
 
 class ApiService {
   final _storage = const FlutterSecureStorage();
   static const _tokenKey = 'user_token';
   final String _baseUrl = 'http://localhost:8000/api/v1';
-  final String _wsBaseUrl = 'ws://localhost:8000/api/v1';
   String? _userToken;
   int? _userId;
-  WebSocketChannel? _wsChannel;
 
   Future<Map<String, dynamic>> signup(String email, String password, String fullName, String tenantName) async {
     final response = await http.post(
@@ -60,6 +57,7 @@ class ApiService {
     _userToken = null;
     _userId = null;
     await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: 'user_id');
   }
 
   Future<void> forgotPassword(String email) async {
@@ -77,24 +75,7 @@ class ApiService {
   // A placeholder for the user's token. In a real app, you'd store and retrieve this securely.
   String? get userToken => _userToken;
 
-  Future<ChatMessage> sendMessage(int channelId, String message) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/channels/$channelId/chat'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $_userToken',
-      },
-      body: jsonEncode({
-        'message': message,
-      }),
-    );
 
-    if (response.statusCode == 200) {
-      return ChatMessage.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to send message: ${response.body}');
-    }
-  }
 
   Future<List<ChatMessage>> getNewMessages(int channelId, int lastMessageId) async {
     final response = await http.post(
@@ -114,18 +95,21 @@ class ApiService {
     }
   }
 
-  Future<void> setToken(String token) async {
+  Future<void> setToken(String token, {int? userId}) async {
     await _storage.write(key: _tokenKey, value: token);
     _userToken = token;
-    print('User token set: $_userToken');
-    _userId = _getUserIdFromToken(token);
+    if (userId != null) {
+      _userId = userId;
+      await _storage.write(key: 'user_id', value: userId.toString());
+    }
   }
 
   Future<bool> tryLoadToken() async {
     final token = await _storage.read(key: _tokenKey);
+    final userIdStr = await _storage.read(key: 'user_id');
     if (token != null) {
       _userToken = token;
-      _userId = _getUserIdFromToken(token);
+      _userId = userIdStr != null ? int.tryParse(userIdStr) : null;
       return true;
     }
     return false;
@@ -133,23 +117,7 @@ class ApiService {
 
   int? getUserId() => _userId;
 
-  int? _getUserIdFromToken(String token) {
-    try {
-      final parts = token.split('.');
-      if (parts.length != 3) return null;
-      final payload = json.decode(
-        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
-      );
-      final sub = payload['sub'];
-      print('User ID from token: $sub');
-      if (sub is int) return sub;
-      if (sub is String) return int.tryParse(sub);
-      return null;
-    } catch (e) {
-      print('Error decoding token: $e');
-      return null;
-    }
-  }
+
 
   Future<List<Channel>> getChannels() async {
     final response = await http.get(
@@ -251,7 +219,7 @@ class ApiService {
     }
   }
 
-  Future<ChatMessage> sendMessageInChannel(int channelId, String message) async {
+  Future<List<ChatMessage>> sendMessageInChannel(int channelId, String message) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/channels/$channelId/chat'),
       headers: {
@@ -262,9 +230,11 @@ class ApiService {
     );
 
     if (response.statusCode == 200) {
-      return ChatMessage.fromJson(jsonDecode(response.body));
+      final responseData = jsonDecode(response.body);
+      final List<dynamic> messagesJson = responseData['messages'];
+      return messagesJson.map((json) => ChatMessage.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to send message');
+      throw Exception('Failed to send message: ${response.body}');
     }
   }
 
@@ -338,43 +308,5 @@ class ApiService {
     );
   }
 
-  // WebSocket methods for real-time chat
-  WebSocketChannel connectToChannelChat(int channelId) {
-    try {
-      _wsChannel = WebSocketChannel.connect(
-        Uri.parse('$_wsBaseUrl/channels/$channelId/stream?token=$_userToken'),
-      );
-      return _wsChannel!;
-    } catch (e) {
-      print('Failed to connect WebSocket: $e');
-      rethrow;
-    }
-  }
 
-  WebSocketChannel connectToGeneralChat() {
-    try {
-      _wsChannel = WebSocketChannel.connect(
-        Uri.parse('$_wsBaseUrl/chat/stream?token=$_userToken'),
-      );
-      return _wsChannel!;
-    } catch (e) {
-      print('Failed to connect WebSocket: $e');
-      rethrow;
-    }
-  }
-
-  void sendWebSocketMessage(String message, {int? channelId}) {
-    if (_wsChannel != null) {
-      final payload = {
-        'message': message,
-        if (channelId != null) 'channel_id': channelId,
-      };
-      _wsChannel!.sink.add(jsonEncode(payload));
-    }
-  }
-
-  void closeWebSocket() {
-    _wsChannel?.sink.close();
-    _wsChannel = null;
-  }
 }

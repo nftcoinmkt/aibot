@@ -8,7 +8,6 @@ import 'dart:async';
 import 'package:flutter_ai_bot/utils/platform_file_uploader.dart';
 import 'package:flutter_ai_bot/views/channel_details_view.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
 
 
@@ -29,8 +28,6 @@ class _ChatViewState extends State<ChatView> {
   bool _isTyping = false;
   bool _isLoading = true;
   final PlatformFileUploader _fileUploader = getPlatformFileUploader();
-  WebSocketChannel? _wsChannel;
-  StreamSubscription? _wsSubscription;
   int _lastMessageId = 0;
 
   @override
@@ -38,7 +35,6 @@ class _ChatViewState extends State<ChatView> {
     super.initState();
     _currentUserId = widget.apiService.getUserId();
     _loadMessages();
-    _connectWebSocket();
 
     _controller.addListener(() {
       if (mounted) {
@@ -51,77 +47,11 @@ class _ChatViewState extends State<ChatView> {
 
   @override
   void dispose() {
-    _wsSubscription?.cancel();
-    _wsChannel?.sink.close();
-    widget.apiService.closeWebSocket();
     _controller.dispose();
     super.dispose();
   }
 
-  void _connectWebSocket() {
-    try {
-      _wsChannel = widget.apiService.connectToChannelChat(widget.channel.id);
-      _wsSubscription = _wsChannel!.stream.listen(
-        (data) {
-          if (mounted) {
-            try {
-              final messageData = jsonDecode(data);
-              
-              // Handle different message types from backend
-              if (messageData['type'] == 'chunk') {
-                // Handle streaming chunks - could show typing indicator or build response
-                print('Received chunk: ${messageData['content']}');
-              } else if (messageData['type'] == 'typing') {
-                // Handle typing indicator
-                print('AI is typing...');
-              } else if (messageData['type'] == 'complete') {
-                // Handle completion signal
-                print('Response complete');
-              } else if (messageData['type'] == 'error') {
-                // Handle error
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: ${messageData['content']}')),
-                );
-              } else if (messageData.containsKey('id') && messageData.containsKey('message')) {
-                // Handle complete message from backend
-                try {
-                  final message = ChatMessage.fromJson(messageData);
-                  setState(() {
-                    if (!_messages.any((m) => m.id == message.id)) {
-                      _messages.insert(0, message);
-                      if (message.id > _lastMessageId) {
-                        _lastMessageId = message.id;
-                      }
-                    }
-                  });
-                } catch (e) {
-                  print('Error creating ChatMessage from JSON: $e');
-                  print('Message data: $messageData');
-                }
-              }
-            } catch (e) {
-              print('Error parsing WebSocket message: $e');
-              print('Raw data: $data');
-            }
-          }
-        },
-        onError: (error) {
-          print('WebSocket error: $error');
-          // Try to reconnect after a delay
-          Future.delayed(const Duration(seconds: 5), () {
-            if (mounted) {
-              _connectWebSocket();
-            }
-          });
-        },
-        onDone: () {
-          print('WebSocket connection closed');
-        },
-      );
-    } catch (e) {
-      print('Failed to connect WebSocket: $e');
-    }
-  }
+
 
   void _loadMessages() async {
     try {
@@ -176,18 +106,25 @@ class _ChatViewState extends State<ChatView> {
 
     try {
       // Send message via API to ensure it's saved
-      final sentMessage = await widget.apiService.sendMessageInChannel(widget.channel.id, messageText);
-      
-      // Update the temporary message with the real one
+      final messages = await widget.apiService.sendMessageInChannel(widget.channel.id, messageText);
+
+      // Remove the temporary message and add the real messages (user + AI response)
       setState(() {
         final index = _messages.indexWhere((m) => m.id == tempMessage.id);
         if (index != -1) {
-          _messages[index] = sentMessage.copyWith(status: MessageStatus.sent);
+          _messages.removeAt(index);
+        }
+
+        // Add the messages in reverse order (AI response first, then user message)
+        // so they appear correctly in the UI (newest at top)
+        for (final message in messages.reversed) {
+          _messages.insert(0, message.copyWith(status: MessageStatus.sent));
+          if (message.id > _lastMessageId) {
+            _lastMessageId = message.id;
+          }
         }
       });
 
-      // Also send via WebSocket for real-time updates to other users
-      widget.apiService.sendWebSocketMessage(messageText, channelId: widget.channel.id);
     } catch (e) {
       // Mark message as failed
       setState(() {
@@ -446,11 +383,21 @@ class _ChatViewState extends State<ChatView> {
     }
   }
 
+  String _getSenderName(ChatMessage message, bool isMe, bool isAI) {
+    if (isAI) {
+      return 'AI Bot';
+    } else if (isMe) {
+      return 'You';
+    } else {
+      return 'User'; // Could be enhanced to show actual user names
+    }
+  }
+
   Widget _buildMessageContent(ChatMessage message, bool isMe, {bool isAI = false}) {
-    final bubbleColor = isMe 
-        ? const Color(0xFFDCF8C6) 
-        : isAI 
-            ? const Color(0xFFE3F2FD) 
+    final bubbleColor = isMe
+        ? const Color(0xFFDCF8C6)
+        : isAI
+            ? const Color(0xFFE3F2FD)
             : Colors.white;
     final bubbleRadius = BorderRadius.only(
       topLeft: const Radius.circular(18),
@@ -477,6 +424,19 @@ class _ChatViewState extends State<ChatView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Sender name
+          if (!isMe)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                _getSenderName(message, isMe, isAI),
+                style: TextStyle(
+                  color: isAI ? Colors.blue[700] : const Color(0xFF25D366),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           if (message.attachment != null)
             _buildAttachmentView(message.attachment!),
           Row(

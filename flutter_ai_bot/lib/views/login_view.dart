@@ -38,7 +38,8 @@ class _LoginViewState extends State<LoginView> {
           _passwordController.text,
         );
         final String token = result['access_token'];
-        await _apiService.setToken(token);
+        final int userId = result['user_id'];
+        await _apiService.setToken(token, userId: userId);
         print('Login successful');
 
         Navigator.pushReplacementNamed(context, '/home');

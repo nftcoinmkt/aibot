@@ -24,23 +24,18 @@ class AuthenticationService:
         self, db: Session = Depends(get_default_db), token: str = Depends(reusable_oauth2)
     ) -> models.User:
         """Get current user from JWT token."""
-        print("get_current_user JWT")
         try:
-            print("get_current_user JWT try",settings.SECRET_KEY, settings.ALGORITHM)
             payload = jwt.decode(
                 token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
             )
-            print("get_current_user JWT payload", payload)
             token_data = schemas.TokenData(email=payload.get("sub"))
-            print("get_current_user JWT token_data", token_data)
         except (JWTError, ValidationError):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Could not validate credentials",
             )
-        
+
         user = user_management_service.get_user_by_email(db=db, email=token_data.email)
-        print("get_current_user JWT user", user)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -120,10 +115,9 @@ authentication_service = AuthenticationService()
 
 # Dependency functions for FastAPI
 def get_current_user(
-    db: Session = Depends(get_default_db), 
+    db: Session = Depends(get_default_db),
     token: str = Depends(reusable_oauth2)
 ) -> models.User:
-    print("get_current_user")
     return authentication_service.get_current_user(db, token)
 
 

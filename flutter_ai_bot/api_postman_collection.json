@@ -28,8 +28,14 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/signup",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "signup"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "signup"
+              ]
             }
           }
         },
@@ -40,7 +46,7 @@
             "header": [
               {
                 "key": "Content-Type",
-            "value": "application/x-www-form-urlencoded"
+                "value": "application/x-www-form-urlencoded"
               }
             ],
             "body": {
@@ -58,8 +64,15 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/login/access-token",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "login", "access-token"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "login",
+                "access-token"
+              ]
             }
           }
         },
@@ -84,8 +97,14 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/forgot-password",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "forgot-password"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "forgot-password"
+              ]
             }
           }
         },
@@ -110,8 +129,14 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/reset-password",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "reset-password"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reset-password"
+              ]
             }
           }
         },
@@ -131,8 +156,14 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/signout",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "signout"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "signout"
+              ]
             }
           }
         }
@@ -153,8 +184,14 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/users?skip=0&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "users"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ],
               "query": [
                 {
                   "key": "skip",
@@ -193,8 +230,14 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/users",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "users"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
             }
           }
         }
@@ -228,8 +271,14 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/channels",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "channels"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels"
+              ]
             }
           }
         },
@@ -245,8 +294,14 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/channels?skip=0&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "channels"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels"
+              ],
               "query": [
                 {
                   "key": "skip",
@@ -272,8 +327,15 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/channels/1",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "channels", "1"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "1"
+              ]
             }
           }
         },
@@ -302,8 +364,15 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/channels/1",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "channels", "1"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "1"
+              ]
             }
           }
         },
@@ -319,8 +388,15 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/channels/1",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "channels", "1"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "1"
+              ]
             }
           }
         },
@@ -349,8 +425,16 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/channels/1/members",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "channels", "1", "members"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "1",
+                "members"
+              ]
             }
           }
         },
@@ -366,8 +450,16 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/channels/1/members",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "channels", "1", "members"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "1",
+                "members"
+              ]
             }
           }
         },
@@ -396,8 +488,17 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/channels/1/members/2",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "channels", "1", "members", "2"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "1",
+                "members",
+                "2"
+              ]
             }
           }
         },
@@ -413,8 +514,17 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/channels/1/members/2",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "channels", "1", "members", "2"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "1",
+                "members",
+                "2"
+              ]
             }
           }
         },
@@ -430,8 +540,15 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/channels/stats",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "channels", "stats"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "stats"
+              ]
             }
           }
         }
@@ -465,8 +582,14 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/chat",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "chat"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "chat"
+              ]
             }
           },
           "response": [
@@ -490,8 +613,14 @@
                 },
                 "url": {
                   "raw": "{{base_url}}/api/v1/chat",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "chat"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "chat"
+                  ]
                 }
               },
               "status": "OK",
@@ -520,8 +649,15 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/chat/history?skip=0&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "chat", "history"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "history"
+              ],
               "query": [
                 {
                   "key": "skip",
@@ -547,8 +683,15 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/chat/stats",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "chat", "stats"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "stats"
+              ]
             }
           }
         },
@@ -577,51 +720,17 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/channels/1/chat",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "channels", "1", "chat"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "channels",
+                "1",
+                "chat"
+              ]
             }
-          }
-        },
-        {
-          "name": "WebSocket Chat Stream",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "ws://{{base_url_ws}}/api/v1/chat/stream?token={{user_token}}",
-              "protocol": "ws",
-              "host": ["{{base_url_ws}}"],
-              "path": ["api", "v1", "chat", "stream"],
-              "query": [
-                {
-                  "key": "token",
-                  "value": "{{user_token}}",
-                  "description": "JWT token for authentication"
-                }
-              ]
-            },
-            "description": "WebSocket endpoint for streaming chat responses. Send JSON: {\"message\": \"your message\", \"channel_id\": 123 (optional)}"
-          }
-        },
-        {
-          "name": "WebSocket Channel Stream",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "ws://{{base_url_ws}}/api/v1/channels/1/stream?token={{user_token}}",
-              "protocol": "ws",
-              "host": ["{{base_url_ws}}"],
-              "path": ["api", "v1", "channels", "1", "stream"],
-              "query": [
-                {
-                  "key": "token",
-                  "value": "{{user_token}}",
-                  "description": "JWT token for authentication"
-                }
-              ]
-            },
-            "description": "WebSocket endpoint for streaming chat responses in a specific channel. Send JSON: {\"message\": \"your message\"}"
           }
         }
       ]

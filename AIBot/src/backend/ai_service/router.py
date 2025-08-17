@@ -1,8 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
-import json
-from urllib.parse import parse_qs
 from datetime import datetime
 
 from src.backend.auth.schemas import User
@@ -28,7 +26,7 @@ def chat_with_ai(
     )
     return {"response": response, "provider": provider}
 
-@router.post("/channels/{channel_id}/chat", response_model=schemas.ChatResponse)
+@router.post("/channels/{channel_id}/chat", response_model=schemas.ChannelChatResponse)
 def chat_in_channel(
     channel_id: int,
     request: schemas.ChatRequest,
@@ -36,12 +34,13 @@ def chat_in_channel(
     db: Session = Depends(get_default_db)
 ):
     """
-    Chat with AI in a specific channel.
+    Chat with AI in a specific channel. Returns both user message and AI response.
     """
-    response, provider = chat_service.process_chat_message(
+    messages = chat_service.process_channel_message(
         current_user.id, current_user.tenant_name, request.message, channel_id
     )
-    return {"response": response, "provider": provider}
+
+    return {"messages": messages}
 
 @router.get("/chat/history", response_model=List[schemas.ChatHistory])
 def get_chat_history(
@@ -69,166 +68,8 @@ def get_chat_stats(
     stats = chat_service.get_chat_statistics(current_user.tenant_name)
     return stats
 
-async def get_user_from_websocket_token(websocket: WebSocket) -> User:
-    """Extract and validate user from WebSocket token."""
-    try:
-        # Get token from query parameters
-        query_params = parse_qs(websocket.url.query)
-        token = query_params.get("token", [None])[0]
-        
-        if not token:
-            await websocket.close(code=4001, reason="Missing authentication token")
-            return None
-            
-        # Decode and validate token
-        user = get_user_from_token(token)
-        if not user:
-            await websocket.close(code=4001, reason="Invalid authentication token")
-            return None
-            
-        return user
-    except Exception as e:
-        await websocket.close(code=4001, reason=f"Authentication error: {str(e)}")
-        return None
 
-@router.websocket("/chat/stream")
-async def websocket_chat_stream(websocket: WebSocket):
-    """
-    WebSocket endpoint for streaming chat responses.
-    Connect with: ws://localhost:8000/api/v1/chat/stream?token=YOUR_JWT_TOKEN
-    """
-    await websocket.accept()
-    
-    # Authenticate user
-    user = await get_user_from_websocket_token(websocket)
-    if not user:
-        return
-    
-    try:
-        while True:
-            # Receive message from client
-            data = await websocket.receive_text()
-            message_data = json.loads(data)
-            message = message_data.get("message", "")
-            channel_id = message_data.get("channel_id")
-            
-            if not message:
-                await websocket.send_text(json.dumps({
-                    "type": "error",
-                    "content": "Message cannot be empty"
-                }))
-                continue
-            
-            # Send typing indicator
-            await websocket.send_text(json.dumps({
-                "type": "typing",
-                "content": "AI is typing..."
-            }))
-            
-            # Stream response
-            full_response = ""
-            async for chunk in chat_service.stream_chat_response(
-                user.id, user.tenant_name, message, channel_id
-            ):
-                full_response += chunk
-                await websocket.send_text(json.dumps({
-                    "type": "chunk",
-                    "content": chunk
-                }))
-            
-            # Send complete message in expected format for frontend
-            await websocket.send_text(json.dumps({
-                "id": int(datetime.now().timestamp() * 1000),
-                "channelId": channel_id,
-                "userId": 0,  # AI user ID
-                "message": full_response,
-                "timestamp": datetime.now().isoformat(),
-                "response": full_response,
-                "provider": "ai"
-            }))
-            
-            # Send completion signal
-            await websocket.send_text(json.dumps({
-                "type": "complete",
-                "content": "Response complete"
-            }))
-            
-    except WebSocketDisconnect:
-        print(f"WebSocket disconnected for user {user.email}")
-    except Exception as e:
-        await websocket.send_text(json.dumps({
-            "type": "error",
-            "content": f"Error: {str(e)}"
-        }))
 
-@router.websocket("/channels/{channel_id}/stream")
-async def websocket_channel_stream(websocket: WebSocket, channel_id: int):
-    """
-    WebSocket endpoint for streaming chat responses in a specific channel.
-    Connect with: ws://localhost:8000/api/v1/channels/{channel_id}/stream?token=YOUR_JWT_TOKEN
-    """
-    await websocket.accept()
-    
-    # Authenticate user
-    user = await get_user_from_websocket_token(websocket)
-    if not user:
-        return
-    
-    try:
-        while True:
-            # Receive message from client
-            data = await websocket.receive_text()
-            message_data = json.loads(data)
-            message = message_data.get("message", "")
-            
-            if not message:
-                await websocket.send_text(json.dumps({
-                    "type": "error",
-                    "content": "Message cannot be empty"
-                }))
-                continue
-            
-            # Send typing indicator
-            await websocket.send_text(json.dumps({
-                "type": "typing",
-                "content": "AI is typing..."
-            }))
-            
-            # Stream response with channel_id
-            full_response = ""
-            async for chunk in chat_service.stream_chat_response(
-                user.id, user.tenant_name, message, channel_id
-            ):
-                full_response += chunk
-                await websocket.send_text(json.dumps({
-                    "type": "chunk",
-                    "content": chunk,
-                    "channel_id": channel_id
-                }))
-            
-            # Send complete message in expected format for frontend
-            await websocket.send_text(json.dumps({
-                "id": int(datetime.now().timestamp() * 1000),
-                "channelId": channel_id,
-                "userId": 0,  # AI user ID
-                "message": full_response,
-                "timestamp": datetime.now().isoformat(),
-                "response": full_response,
-                "provider": "ai"
-            }))
-            
-            # Send completion signal
-            await websocket.send_text(json.dumps({
-                "type": "complete",
-                "content": "Response complete",
-                "channel_id": channel_id
-            }))
-            
-    except WebSocketDisconnect:
-        print(f"WebSocket disconnected for user {user.email} in channel {channel_id}")
-    except Exception as e:
-        await websocket.send_text(json.dumps({
-            "type": "error",
-            "content": f"Error: {str(e)}",
-            "channel_id": channel_id
-        }))
+
+
+

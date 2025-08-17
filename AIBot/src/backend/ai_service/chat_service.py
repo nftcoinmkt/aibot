@@ -126,6 +126,60 @@ class ChatService:
         
         return response, provider
 
+    def process_channel_message(
+        self,
+        user_id: int,
+        tenant_name: str,
+        message: str,
+        channel_id: int
+    ) -> Tuple[ChannelMessage, ChannelMessage]:
+        """Process channel message and return both user message and AI response as separate objects."""
+        # Get AI response
+        inputs = {
+            "message": message,
+            "user_id": user_id,
+            "tenant_name": tenant_name
+        }
+
+        result = self.workflow.invoke(inputs)
+        response = result['response']
+        provider = settings.AI_PROVIDER
+
+        # Get tenant-specific database session
+        db_generator = get_tenant_db(tenant_name)
+        db = next(db_generator)
+
+        try:
+            # Save user message
+            user_message = ChannelMessage(
+                channel_id=channel_id,
+                user_id=user_id,
+                message=message,
+                message_type="user",
+                created_at=datetime.utcnow()
+            )
+            db.add(user_message)
+            db.commit()
+            db.refresh(user_message)
+
+            # Save AI response
+            ai_message = ChannelMessage(
+                channel_id=channel_id,
+                user_id=-1,  # AI user ID (Flutter expects -1 for AI messages)
+                message=response,
+                response=response,
+                provider=provider,
+                message_type="ai",
+                created_at=datetime.utcnow()
+            )
+            db.add(ai_message)
+            db.commit()
+            db.refresh(ai_message)
+
+            return user_message, ai_message
+        finally:
+            db.close()
+
     def get_chat_history(
         self, 
         tenant_name: str, 
