@@ -49,7 +49,7 @@ load_dotenv()
 
 def test_gemini_connection():
     try:
-        # Get API key from environment 2
+        # Get API key from environment 
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             print("Error: GEMINI_API_KEY not found in environment variables")
