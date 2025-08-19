@@ -12,6 +12,12 @@ from src.backend.channels.models import ChannelMessage
 from .ai_providers import GroqProvider, GeminiProvider
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+# Import WebSocket manager for real-time updates
+try:
+    from src.backend.websocket.connection_manager import manager
+except ImportError:
+    manager = None
+
 
 class GraphState(TypedDict):
     message: str
@@ -199,6 +205,11 @@ class ChatService:
                     "created_at": ai_message.created_at
                 }
             ]
+
+            # Broadcast messages to WebSocket connections if manager is available
+            if manager:
+                for message_dict in messages:
+                    asyncio.create_task(manager.broadcast_new_message(channel_id, message_dict))
 
             return messages
         finally:

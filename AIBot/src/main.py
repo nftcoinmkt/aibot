@@ -72,6 +72,10 @@ app.include_router(ai_router.router, prefix=settings.API_V1_STR, tags=["ai_servi
 from src.backend.channels import router as channels_router
 app.include_router(channels_router.router, prefix=settings.API_V1_STR, tags=["channels"])
 
+# Import and include WebSocket router
+from src.backend.websocket import router as websocket_router
+app.include_router(websocket_router.router, tags=["websocket"])
+
 # Mount static files for uploads
 import os
 uploads_dir = "uploads"

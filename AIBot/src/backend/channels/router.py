@@ -3,12 +3,14 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pathlib import Path
 import uuid
+import asyncio
 
 from src.backend.auth.schemas import User
 from src.backend.auth.authentication_service import get_current_active_user, get_current_active_superuser
 from src.backend.shared.database_manager import get_default_db, get_tenant_db
 from .service import channel_service
 from src.backend.ai_service.chat_service import chat_service
+from src.backend.websocket.connection_manager import manager
 from . import schemas
 
 router = APIRouter()
@@ -366,7 +368,25 @@ async def upload_file_to_channel(
                 message_text=message_text,
                 analysis_prompt=analysis_prompt
             )
-            
+
+            # Broadcast new messages to WebSocket connections
+            for message in messages:
+                message_dict = {
+                    "id": message.id,
+                    "channel_id": message.channel_id,
+                    "user_id": message.user_id,
+                    "message": message.message,
+                    "response": message.response,
+                    "provider": message.provider,
+                    "message_type": message.message_type,
+                    "created_at": message.created_at.isoformat(),
+                    "file_url": message.file_url,
+                    "file_name": message.file_name,
+                    "file_type": message.file_type,
+                    "is_archived": message.is_archived
+                }
+                asyncio.create_task(manager.broadcast_new_message(channel_id, message_dict))
+
             return {"messages": messages}
         except Exception as e:
             # If AI analysis fails, still save the file message

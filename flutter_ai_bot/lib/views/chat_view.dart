@@ -10,12 +10,14 @@ import 'package:flutter_ai_bot/utils/platform_file_uploader.dart';
 import 'package:flutter_ai_bot/views/channel_details_view.dart';
 import 'package:flutter_ai_bot/widgets/file_preview_dialog.dart';
 import 'package:flutter_ai_bot/widgets/file_upload_dialog.dart';
+import 'package:flutter_ai_bot/services/websocket_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cross_file/cross_file.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:async';
 import 'package:path/path.dart' as path;
 
 
@@ -44,17 +46,30 @@ class _ChatViewState extends State<ChatView> {
   String _selectedFileName = '';
   String _selectedFileType = '';
 
+  // WebSocket for real-time updates
+  WebSocketService? _webSocketService;
+  StreamSubscription<ChatMessage>? _newMessageSubscription;
+  StreamSubscription<Map<String, dynamic>>? _typingSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _onlineUsersSubscription;
+
+  // Real-time state
+  Set<int> _typingUsers = {};
+  List<Map<String, dynamic>> _onlineUsers = [];
+  Timer? _typingTimer;
+
   @override
   void initState() {
     super.initState();
     _currentUserId = widget.apiService.getUserId();
     _loadMessages();
+    _initializeWebSocket();
 
     _controller.addListener(() {
       if (mounted) {
         setState(() {
           _isTyping = _controller.text.isNotEmpty;
         });
+        _handleTypingStatus();
       }
     });
   }
@@ -62,7 +77,86 @@ class _ChatViewState extends State<ChatView> {
   @override
   void dispose() {
     _controller.dispose();
+    _webSocketService?.dispose();
+    _newMessageSubscription?.cancel();
+    _typingSubscription?.cancel();
+    _onlineUsersSubscription?.cancel();
+    _typingTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initializeWebSocket() async {
+    try {
+      _webSocketService = WebSocketService();
+      final token = await widget.apiService.getToken();
+
+      if (token != null) {
+        await _webSocketService!.connect(widget.channel.id, token);
+
+        // Listen for new messages
+        _newMessageSubscription = _webSocketService!.newMessageStream?.listen((message) {
+          if (mounted) {
+            setState(() {
+              // Only add if not already in the list (avoid duplicates)
+              final exists = _messages.any((m) => m.id == message.id);
+              if (!exists) {
+                _messages.insert(0, message);
+                if (message.id > _lastMessageId) {
+                  _lastMessageId = message.id;
+                }
+              }
+            });
+          }
+        });
+
+        // Listen for typing status
+        _typingSubscription = _webSocketService!.typingStream?.listen((data) {
+          if (mounted) {
+            final type = data['type'] as String;
+            if (type == 'typing_status') {
+              final userId = data['user_id'] as int;
+              final isTyping = data['is_typing'] as bool;
+
+              setState(() {
+                if (isTyping && userId != _currentUserId) {
+                  _typingUsers.add(userId);
+                } else {
+                  _typingUsers.remove(userId);
+                }
+              });
+            }
+          }
+        });
+
+        // Listen for online users
+        _onlineUsersSubscription = _webSocketService!.onlineUsersStream?.listen((users) {
+          if (mounted) {
+            setState(() {
+              _onlineUsers = users;
+            });
+          }
+        });
+      }
+    } catch (e) {
+      print('Failed to initialize WebSocket: $e');
+    }
+  }
+
+  void _handleTypingStatus() {
+    // Cancel previous timer
+    _typingTimer?.cancel();
+
+    // Send typing status
+    if (_isTyping) {
+      _webSocketService?.sendTypingStatus(true);
+
+      // Set timer to stop typing after 2 seconds of inactivity
+      _typingTimer = Timer(const Duration(seconds: 2), () {
+        _webSocketService?.sendTypingStatus(false);
+      });
+    } else {
+      _webSocketService?.sendTypingStatus(false);
+    }
   }
 
 
@@ -549,16 +643,52 @@ class _ChatViewState extends State<ChatView> {
                               ),
                             ),
                           Expanded(
-                            child: ListView.builder(
-                              reverse: true,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                              itemCount: _messages.length,
-                              itemBuilder: (context, index) {
-                                final message = _messages[index];
-                                final isMe = message.userId == _currentUserId;
-                                final isAI = message.userId == -1; // AI messages have userId -1
-                                return _buildMessageBubble(message, isMe, isAI: isAI);
-                              },
+                            child: Column(
+                              children: [
+                                // Online users indicator
+                                if (_onlineUsers.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          CupertinoIcons.circle_fill,
+                                          color: Colors.green,
+                                          size: 8,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '${_onlineUsers.length} online',
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                Expanded(
+                                  child: ListView.builder(
+                                    reverse: true,
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    itemCount: _messages.length + (_typingUsers.isNotEmpty ? 1 : 0),
+                                    itemBuilder: (context, index) {
+                                      // Show typing indicator at the bottom (index 0 when reversed)
+                                      if (index == 0 && _typingUsers.isNotEmpty) {
+                                        return _buildTypingIndicator();
+                                      }
+
+                                      // Adjust index for actual messages
+                                      final messageIndex = _typingUsers.isNotEmpty ? index - 1 : index;
+                                      final message = _messages[messageIndex];
+                                      final isMe = message.userId == _currentUserId;
+                                      final isAI = message.userId == -1; // AI messages have userId -1
+                                      return _buildMessageBubble(message, isMe, isAI: isAI);
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -832,6 +962,45 @@ class _ChatViewState extends State<ChatView> {
       builder: (context) => FilePreviewDialog(
         attachment: attachment,
         baseUrl: 'http://localhost:8000', // TODO: Get from API service
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _typingUsers.length == 1 ? 'Someone is typing' : '${_typingUsers.length} people are typing',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

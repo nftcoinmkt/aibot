@@ -128,6 +128,10 @@ class ApiService {
 
   int? getUserId() => _userId;
 
+  Future<String?> getToken() async {
+    return await _storage.read(key: 'auth_token');
+  }
+
 
 
   Future<List<Channel>> getChannels() async {
