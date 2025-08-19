@@ -37,7 +37,7 @@ jobs:
       
     - name: Build Flutter web
       working-directory: ./flutter_ai_bot
-      run: flutter build web --release --web-renderer html
+      run: flutter build web --release
       
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
@@ -165,7 +165,7 @@ jobs:
       
     - name: Build Flutter web (test)
       working-directory: ./flutter_ai_bot
-      run: flutter build web --release --web-renderer html
+      run: flutter build web --release
       
     - name: Upload web build artifacts
       uses: actions/upload-artifact@v4
