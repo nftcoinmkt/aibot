@@ -43,6 +43,7 @@ class WebSocketService {
           
         case 'online_users':
           final users = data['users'] as List<dynamic>;
+          print('📡 WebSocket received online_users: ${users.length} users');
           _onlineUsersController!.add(users.cast<Map<String, dynamic>>());
           break;
           

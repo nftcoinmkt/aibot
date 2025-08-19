@@ -38,10 +38,11 @@ class ConnectionManager:
             "user_name": user_name,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }, exclude_websocket=websocket)
-        
-        # Send current online users to the new connection
+
+        # Send updated online users list to ALL users in the channel (including the new user)
         online_users = self.get_online_users(channel_id)
-        await self.send_personal_message(websocket, {
+        print(f"👥 Broadcasting online users to channel {channel_id}: {len(online_users)} users")
+        await self.broadcast_to_channel(channel_id, {
             "type": "online_users",
             "users": online_users
         })
@@ -74,6 +75,14 @@ class ConnectionManager:
                 "user_id": user_id,
                 "user_name": user_name,
                 "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+
+            # Send updated online users list to remaining users in the channel
+            online_users = self.get_online_users(channel_id)
+            print(f"👥 Broadcasting online users after disconnect to channel {channel_id}: {len(online_users)} users")
+            await self.broadcast_to_channel(channel_id, {
+                "type": "online_users",
+                "users": online_users
             })
     
     async def send_personal_message(self, websocket: WebSocket, message: dict):

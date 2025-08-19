@@ -205,7 +205,7 @@ def remove_member_from_channel(
         db.close()
 
 
-@router.get("/channels/{channel_id}/members", response_model=List[schemas.ChannelMember])
+@router.get("/channels/{channel_id}/members", response_model=List[schemas.ChannelMemberWithUser])
 def get_channel_members(
     channel_id: int,
     current_user: User = Depends(get_current_active_user)

@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_ai_bot/models/attachment_model.dart';
 import 'package:flutter_ai_bot/models/channel_model.dart';
+import 'package:flutter_ai_bot/models/channel_member_model.dart';
 import 'package:flutter_ai_bot/models/chat_message_model.dart';
 import 'package:flutter_ai_bot/network/api_service.dart';
 import 'dart:async';
@@ -134,6 +135,7 @@ class _ChatViewState extends State<ChatView> {
         // Listen for online users
         _onlineUsersSubscription = _webSocketService!.onlineUsersStream?.listen((users) {
           if (mounted) {
+            print('👥 Received online users update: ${users.length} users');
             setState(() {
               _onlineUsers = users;
             });
@@ -245,7 +247,7 @@ class _ChatViewState extends State<ChatView> {
           // Create mapping of user ID to full name
           _userNames = {
             for (var member in members)
-              member.userId: member.user?.fullName ?? 'User ${member.userId}'
+              member.userId: _getUserDisplayName(member)
           };
           print('📋 Loaded ${_userNames.length} channel members: $_userNames');
         });
@@ -253,6 +255,21 @@ class _ChatViewState extends State<ChatView> {
     } catch (e) {
       print('❌ Failed to load channel members: $e');
       // Don't show error to user as this is not critical
+    }
+  }
+
+  String _getUserDisplayName(ChannelMember member) {
+    // Try different sources for user name in order of preference
+    if (member.userFullName != null && member.userFullName!.isNotEmpty) {
+      return member.userFullName!;
+    } else if (member.user?.fullName != null && member.user!.fullName.isNotEmpty) {
+      return member.user!.fullName;
+    } else if (member.userEmail != null && member.userEmail!.isNotEmpty) {
+      return member.userEmail!;
+    } else if (member.user?.email != null && member.user!.email.isNotEmpty) {
+      return member.user!.email;
+    } else {
+      return 'User ${member.userId}';
     }
   }
 
@@ -847,7 +864,13 @@ class _ChatViewState extends State<ChatView> {
       return 'You';
     } else {
       // Use the user mapping to get the actual user name
-      return _userNames[message.userId] ?? 'User ${message.userId}';
+      final userName = _userNames[message.userId];
+      if (userName != null) {
+        return userName;
+      } else {
+        // User not found in channel members (possibly deleted)
+        return 'Unknown User';
+      }
     }
   }
 

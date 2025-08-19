@@ -157,21 +157,33 @@ class ChannelService:
 
     def get_channel_members(
         self, db: Session, channel_id: int
-    ) -> List[schemas.ChannelMember]:
-        """Get all members of a channel."""
-        members = (
-            db.query(channel_members)
+    ) -> List[schemas.ChannelMemberWithUser]:
+        """Get all members of a channel with user information."""
+        from src.backend.auth.models import User
+
+        # Join channel_members with users table to get user information
+        members_with_users = (
+            db.query(
+                channel_members.c.user_id,
+                channel_members.c.role,
+                channel_members.c.joined_at,
+                User.full_name,
+                User.email
+            )
+            .join(User, channel_members.c.user_id == User.id)
             .filter(channel_members.c.channel_id == channel_id)
             .all()
         )
-        
+
         return [
-            schemas.ChannelMember(
+            schemas.ChannelMemberWithUser(
                 user_id=member.user_id,
                 role=member.role,
-                joined_at=member.joined_at
+                joined_at=member.joined_at,
+                user_full_name=member.full_name,
+                user_email=member.email
             )
-            for member in members
+            for member in members_with_users
         ]
 
     def is_user_member(self, db: Session, channel_id: int, user_id: int) -> bool:

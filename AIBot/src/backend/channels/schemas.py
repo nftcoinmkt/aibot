@@ -70,6 +70,17 @@ class ChannelMember(BaseModel):
         from_attributes = True
 
 
+class ChannelMemberWithUser(BaseModel):
+    user_id: int
+    role: str
+    joined_at: datetime
+    user_full_name: Optional[str] = None
+    user_email: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class ChannelWithMembers(Channel):
     member_count: int = 0
 
