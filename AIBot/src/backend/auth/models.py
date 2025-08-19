@@ -1,7 +1,7 @@
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Enum as SQLAlchemyEnum, DateTime, Boolean
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import event
 
 from src.backend.shared.database_manager import Base
@@ -10,12 +10,13 @@ from .schemas import UserRole
 
 class Tenant(Base):
     __tablename__ = "tenants"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
     database_name = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     users = relationship("User", back_populates="tenant")
 
@@ -29,6 +30,7 @@ def _tenant_set_database_name(mapper, connection, target):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String, index=True)
@@ -38,7 +40,7 @@ class User(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
     tenant_name = Column(String, nullable=False)  # For easier queries
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = Column(DateTime, nullable=True)
 
     tenant = relationship("Tenant", back_populates="users")

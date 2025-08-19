@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Table
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.backend.shared.database_manager import Base
 
@@ -12,12 +12,14 @@ channel_members = Table(
     Column('channel_id', Integer, ForeignKey('channels.id'), primary_key=True),
     Column('user_id', Integer, primary_key=True),  # Reference to user in main DB
     Column('joined_at', DateTime, default=datetime.utcnow),
-    Column('role', String, default='member')  # 'admin', 'member'
+    Column('role', String, default='member'),  # 'admin', 'member'
+    extend_existing=True
 )
 
 
 class Channel(Base):
     __tablename__ = "channels"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
@@ -36,6 +38,7 @@ class Channel(Base):
 
 class ChannelMessage(Base):
     __tablename__ = "channel_messages"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     channel_id = Column(Integer, ForeignKey('channels.id'), nullable=False)
@@ -44,7 +47,7 @@ class ChannelMessage(Base):
     response = Column(Text, nullable=True)  # AI response if applicable
     provider = Column(String, nullable=True)  # 'groq' or 'gemini' for AI responses
     message_type = Column(String, default='user')  # 'user', 'ai', 'system'
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # File attachment fields
     file_url = Column(String, nullable=True)  # URL to the uploaded file

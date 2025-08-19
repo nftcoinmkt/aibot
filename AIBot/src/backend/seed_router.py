@@ -8,8 +8,7 @@ from pydantic import BaseModel
 from typing import Dict, Any
 import logging
 
-# Import the seed functions
-from seed_data import main as seed_main, cleanup_database, initialize_database, create_users, create_channels, create_conversations
+# Import the seed functions (import inside functions to avoid circular imports)
 
 logger = logging.getLogger(__name__)
 
@@ -28,23 +27,33 @@ async def seed_database():
     """
     try:
         logger.info("Starting database seeding via API...")
-        
+
+        # Import seed functions locally to avoid circular imports
+        try:
+            from scripts.seed_data import cleanup_database, initialize_database, create_users, create_channels, create_conversations
+        except ImportError:
+            # Fallback for different import paths
+            import sys
+            import os
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+            from scripts.seed_data import cleanup_database, initialize_database, create_users, create_channels, create_conversations
+
         # Clean up existing data first
         cleanup_database()
         logger.info("Database cleanup completed")
-        
+
         # Initialize database tables
         initialize_database()
         logger.info("Database initialization completed")
-        
+
         # Create users
         users = create_users()
         logger.info(f"Created {len(users['tenant1']) + len(users['tenant2'])} users")
-        
+
         # Create channels
         channels = create_channels(users)
         logger.info(f"Created {len(channels['tenant1']) + len(channels['tenant2'])} channels")
-        
+
         # Create conversations
         create_conversations(users, channels)
         logger.info("Created conversations")
@@ -86,7 +95,16 @@ async def cleanup_database_endpoint():
     """
     try:
         logger.info("Starting database cleanup via API...")
-        
+
+        # Import locally to avoid circular imports
+        try:
+            from scripts.seed_data import cleanup_database
+        except ImportError:
+            import sys
+            import os
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+            from scripts.seed_data import cleanup_database
+
         cleanup_database()
         
         logger.info("Database cleanup completed successfully")
@@ -111,7 +129,16 @@ async def initialize_database_endpoint():
     """
     try:
         logger.info("Starting database initialization via API...")
-        
+
+        # Import locally to avoid circular imports
+        try:
+            from scripts.seed_data import initialize_database
+        except ImportError:
+            import sys
+            import os
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+            from scripts.seed_data import initialize_database
+
         initialize_database()
         
         logger.info("Database initialization completed successfully")
