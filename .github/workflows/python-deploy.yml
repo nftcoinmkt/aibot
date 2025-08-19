@@ -1,14 +1,14 @@
 name: Build and Deploy Python UV Project
 
 on:
-  push:
-    branches: [ main, develop ]
-    paths:
-      - 'AIBot/**'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'AIBot/**'
+  # push:
+  #   branches: [ main, develop ]
+  #   paths:
+  #     - 'AIBot/**'
+  # pull_request:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'AIBot/**'
   workflow_dispatch:
 
 env:
@@ -50,7 +50,6 @@ jobs:
   build-and-deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
     - name: Checkout repository
@@ -114,7 +113,7 @@ jobs:
   docker-build-only:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/main'
+    if: false  # Disabled - use manual workflow_dispatch instead
     
     steps:
     - name: Checkout repository

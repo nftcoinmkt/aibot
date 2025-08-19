@@ -13,9 +13,20 @@ import 'package:flutter/foundation.dart';
 class ApiService {
   final _storage = const FlutterSecureStorage();
   static const _tokenKey = 'user_token';
-  final String _baseUrl = 'http://localhost:8000/api/v1';
+  late final String _baseUrl;
   String? _userToken;
   int? _userId;
+
+  ApiService() {
+    // Environment-based URL configuration
+    if (kDebugMode) {
+      // Local development
+      _baseUrl = 'http://localhost:8000/api/v1';
+    } else {
+      // Production/Cloud deployment
+      _baseUrl = 'https://aibot-backend-272236378462.us-central1.run.app/api/v1';
+    }
+  }
 
   Future<Map<String, dynamic>> signup(String email, String password, String fullName, String tenantName) async {
     final response = await http.post(

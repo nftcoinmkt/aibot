@@ -1,15 +1,19 @@
 name: Build Flutter Android APK
 
 on:
-  push:
-    branches: [ main, develop ]
-    paths:
-      - 'flutter_ai_bot/**'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'flutter_ai_bot/**'
+  # push:
+  #   branches: [ main, develop ]
+  #   paths:
+  #     - 'flutter_ai_bot/**'
+  # pull_request:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'flutter_ai_bot/**'
   workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   build-android:
@@ -62,12 +66,13 @@ jobs:
         
     - name: Create Release (on main branch)
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ github.run_number }}
         name: Flutter AI Bot v${{ github.run_number }}
         files: |
           flutter_ai_bot/build/app/outputs/flutter-apk/app-release.apk
         generate_release_notes: true
+        make_latest: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
