@@ -1,8 +1,8 @@
-from typing import Dict, List, Set
+from typing import Dict, List
 from fastapi import WebSocket
 import json
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class ConnectionManager:
@@ -13,8 +13,6 @@ class ConnectionManager:
         self.active_connections: Dict[int, List[WebSocket]] = {}
         # Store user info for each connection
         self.connection_users: Dict[WebSocket, Dict] = {}
-        # Store typing users by channel
-        self.typing_users: Dict[int, Set[int]] = {}
     
     async def connect(self, websocket: WebSocket, channel_id: int, user_id: int, user_name: str):
         """Accept a new WebSocket connection."""
@@ -30,7 +28,7 @@ class ConnectionManager:
             "user_id": user_id,
             "user_name": user_name,
             "channel_id": channel_id,
-            "connected_at": datetime.utcnow()
+            "connected_at": datetime.now(timezone.utc)
         }
         
         # Notify others about user joining
@@ -38,7 +36,7 @@ class ConnectionManager:
             "type": "user_joined",
             "user_id": user_id,
             "user_name": user_name,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }, exclude_websocket=websocket)
         
         # Send current online users to the new connection
@@ -65,11 +63,7 @@ class ConnectionManager:
                 if not self.active_connections[channel_id]:
                     del self.active_connections[channel_id]
             
-            # Remove from typing users
-            if channel_id in self.typing_users:
-                self.typing_users[channel_id].discard(user_id)
-                if not self.typing_users[channel_id]:
-                    del self.typing_users[channel_id]
+
             
             # Remove user info
             del self.connection_users[websocket]
@@ -88,7 +82,7 @@ class ConnectionManager:
             await websocket.send_text(json.dumps(message))
         except:
             # Connection might be closed
-            self.disconnect(websocket)
+            await self.disconnect(websocket)
     
     async def broadcast_to_channel(self, channel_id: int, message: dict, exclude_websocket: WebSocket = None):
         """Broadcast a message to all connections in a channel."""
@@ -108,34 +102,57 @@ class ConnectionManager:
         
         # Remove dead connections
         for connection in connections_to_remove:
-            self.disconnect(connection)
+            await self.disconnect(connection)
     
     async def broadcast_new_message(self, channel_id: int, message_data: dict):
         """Broadcast a new message to all users in the channel."""
         await self.broadcast_to_channel(channel_id, {
             "type": "new_message",
             "message": message_data,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
+
+    async def broadcast_new_message_exclude_user(self, channel_id: int, message_data: dict, exclude_user_id: int):
+        """Broadcast a new message to all users in the channel except the specified user."""
+        print(f"Broadcasting message to channel {channel_id}, excluding user {exclude_user_id}")
+        print(f"Active connections for channel {channel_id}: {len(self.active_connections.get(channel_id, []))}")
+
+        if channel_id not in self.active_connections:
+            print(f"No active connections for channel {channel_id}")
+            return
+
+        connections_to_remove = []
+        message = {
+            "type": "new_message",
+            "message": message_data,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+        broadcast_count = 0
+        for connection in self.active_connections[channel_id]:
+            # Skip the user who sent the message
+            if connection in self.connection_users:
+                user_info = self.connection_users[connection]
+                if user_info["user_id"] == exclude_user_id:
+                    print(f"Skipping sender user {exclude_user_id}")
+                    continue
+
+            try:
+                await connection.send_text(json.dumps(message))
+                broadcast_count += 1
+                print(f"Broadcasted to user {self.connection_users.get(connection, {}).get('user_id', 'unknown')}")
+            except Exception as e:
+                print(f"Failed to send to connection: {e}")
+                # Connection is closed, mark for removal
+                connections_to_remove.append(connection)
+
+        print(f"Successfully broadcasted to {broadcast_count} users")
+
+        # Remove dead connections
+        for connection in connections_to_remove:
+            await self.disconnect(connection)
     
-    async def broadcast_typing_status(self, channel_id: int, user_id: int, user_name: str, is_typing: bool):
-        """Broadcast typing status to channel users."""
-        if channel_id not in self.typing_users:
-            self.typing_users[channel_id] = set()
-        
-        if is_typing:
-            self.typing_users[channel_id].add(user_id)
-        else:
-            self.typing_users[channel_id].discard(user_id)
-        
-        await self.broadcast_to_channel(channel_id, {
-            "type": "typing_status",
-            "user_id": user_id,
-            "user_name": user_name,
-            "is_typing": is_typing,
-            "typing_users": list(self.typing_users[channel_id]),
-            "timestamp": datetime.utcnow().isoformat()
-        })
+
     
     def get_online_users(self, channel_id: int) -> List[dict]:
         """Get list of online users in a channel."""

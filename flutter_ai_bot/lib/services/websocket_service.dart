@@ -12,21 +12,17 @@ class WebSocketService {
   
   // Event streams
   Stream<ChatMessage>? _newMessageStream;
-  Stream<Map<String, dynamic>>? _typingStream;
   Stream<List<Map<String, dynamic>>>? _onlineUsersStream;
-  
+
   StreamController<ChatMessage>? _newMessageController;
-  StreamController<Map<String, dynamic>>? _typingController;
   StreamController<List<Map<String, dynamic>>>? _onlineUsersController;
 
   WebSocketService() {
     _messageController = StreamController<Map<String, dynamic>>.broadcast();
     _newMessageController = StreamController<ChatMessage>.broadcast();
-    _typingController = StreamController<Map<String, dynamic>>.broadcast();
     _onlineUsersController = StreamController<List<Map<String, dynamic>>>.broadcast();
-    
+
     _newMessageStream = _newMessageController!.stream;
-    _typingStream = _typingController!.stream;
     _onlineUsersStream = _onlineUsersController!.stream;
     
     _setupMessageHandling();
@@ -43,9 +39,7 @@ class WebSocketService {
           _newMessageController!.add(message);
           break;
           
-        case 'typing_status':
-          _typingController!.add(data);
-          break;
+
           
         case 'online_users':
           final users = data['users'] as List<dynamic>;
@@ -54,46 +48,55 @@ class WebSocketService {
           
         case 'user_joined':
         case 'user_left':
-          // Handle user presence updates
-          _typingController!.add(data);
+          // Handle user presence updates - could be used for online status
           break;
       }
     });
   }
 
   Future<void> connect(int channelId, String token) async {
+    print('🔌 Attempting to connect to WebSocket for channel $channelId');
+    print('🔑 Using token: ${token?.substring(0, 20)}...');
+
     if (_isConnected) {
+      print('📡 Already connected, disconnecting first...');
       await disconnect();
     }
 
     try {
       final wsUrl = 'ws://localhost:8000/ws/channels/$channelId?token=$token';
+      print('🌐 Connecting to: $wsUrl');
+
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
-      
+
       _channel!.stream.listen(
         (data) {
+          print('📨 Received WebSocket data: $data');
           try {
             final message = json.decode(data) as Map<String, dynamic>;
+            print('✅ Parsed WebSocket message: ${message['type']}');
             _messageController!.add(message);
           } catch (e) {
-            print('Error parsing WebSocket message: $e');
+            print('❌ Error parsing WebSocket message: $e');
+            print('📄 Raw data: $data');
           }
         },
         onError: (error) {
-          print('WebSocket error: $error');
+          print('🚨 WebSocket error: $error');
           _isConnected = false;
         },
         onDone: () {
-          print('WebSocket connection closed');
+          print('🔌 WebSocket connection closed');
           _isConnected = false;
         },
       );
-      
+
       _isConnected = true;
+      print('✅ WebSocket connected successfully!');
       _startPingTimer();
-      
+
     } catch (e) {
-      print('Failed to connect to WebSocket: $e');
+      print('❌ Failed to connect to WebSocket: $e');
       _isConnected = false;
     }
   }
@@ -132,13 +135,7 @@ class WebSocketService {
     }
   }
 
-  void sendTypingStatus(bool isTyping) {
-    sendMessage({
-      'type': 'typing',
-      'is_typing': isTyping,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-    });
-  }
+
 
   void markMessageAsRead(int messageId) {
     sendMessage({
@@ -150,7 +147,6 @@ class WebSocketService {
 
   // Getters for streams
   Stream<ChatMessage>? get newMessageStream => _newMessageStream;
-  Stream<Map<String, dynamic>>? get typingStream => _typingStream;
   Stream<List<Map<String, dynamic>>>? get onlineUsersStream => _onlineUsersStream;
   
   bool get isConnected => _isConnected;
@@ -159,7 +155,7 @@ class WebSocketService {
     disconnect();
     _messageController?.close();
     _newMessageController?.close();
-    _typingController?.close();
+
     _onlineUsersController?.close();
   }
 }

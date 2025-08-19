@@ -10,6 +10,7 @@ from src.backend.auth.authentication_service import get_current_active_user, get
 from src.backend.shared.database_manager import get_default_db, get_tenant_db
 from .service import channel_service
 from src.backend.ai_service.chat_service import chat_service
+from src.backend.ai_service import schemas as ai_schemas
 from src.backend.websocket.connection_manager import manager
 from . import schemas
 
@@ -307,6 +308,68 @@ def archive_old_messages(
         db.close()
 
 
+@router.post("/channels/{channel_id}/chat")
+async def send_message_to_channel(
+    channel_id: int,
+    message_data: ai_schemas.ChatRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Send a regular text message to a channel with AI response and WebSocket broadcasting.
+    """
+    # Use tenant-specific database
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+
+    try:
+        # Check if user is a member
+        if not channel_service.is_user_member(db, channel_id, current_user.id):
+            raise HTTPException(status_code=403, detail="Not a member of this channel")
+
+        # Get the message text
+        message_text = message_data.message
+        if not message_text.strip():
+            raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+        # Process the message and get AI response
+        try:
+            messages = await chat_service.process_channel_message(
+                user_id=current_user.id,
+                tenant_name=current_user.tenant_name,
+                message=message_text,
+                channel_id=channel_id
+            )
+
+            # Broadcast new messages to WebSocket connections (excluding the sender to avoid duplicates)
+            print(f"Broadcasting {len(messages)} regular chat messages to channel {channel_id}")
+            for message in messages:
+                message_dict = {
+                    "id": message["id"],
+                    "channel_id": message["channel_id"],
+                    "user_id": message["user_id"],
+                    "message": message["message"],
+                    "response": message.get("response"),
+                    "provider": message.get("provider"),
+                    "message_type": message["message_type"],
+                    "created_at": message["created_at"].isoformat() if hasattr(message["created_at"], 'isoformat') else str(message["created_at"]),
+                    "file_url": None,
+                    "file_name": None,
+                    "file_type": None,
+                    "is_archived": False
+                }
+                print(f"Broadcasting regular message: {message_dict['id']} - {message_dict['message'][:50]}...")
+                # Only broadcast to other users, not the sender
+                await manager.broadcast_new_message_exclude_user(channel_id, message_dict, current_user.id)
+
+            return {"messages": messages}
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to process message: {str(e)}")
+
+    finally:
+        db.close()
+
+
 @router.post("/channels/{channel_id}/upload")
 async def upload_file_to_channel(
     channel_id: int,
@@ -369,23 +432,30 @@ async def upload_file_to_channel(
                 analysis_prompt=analysis_prompt
             )
 
-            # Broadcast new messages to WebSocket connections
+            # Broadcast new messages to WebSocket connections (excluding the sender to avoid duplicates)
+            # The sender already has the messages from the API response
+            print(f"Broadcasting {len(messages)} file upload messages to channel {channel_id}")
             for message in messages:
+                # Handle attachment data properly
+                attachment = message.get("attachment")
                 message_dict = {
-                    "id": message.id,
-                    "channel_id": message.channel_id,
-                    "user_id": message.user_id,
-                    "message": message.message,
-                    "response": message.response,
-                    "provider": message.provider,
-                    "message_type": message.message_type,
-                    "created_at": message.created_at.isoformat(),
-                    "file_url": message.file_url,
-                    "file_name": message.file_name,
-                    "file_type": message.file_type,
-                    "is_archived": message.is_archived
+                    "id": message["id"],
+                    "channel_id": message["channel_id"],
+                    "user_id": message["user_id"],
+                    "message": message["message"],
+                    "response": message.get("response"),
+                    "provider": message.get("provider"),
+                    "message_type": message["message_type"],
+                    "created_at": message["created_at"].isoformat() if hasattr(message["created_at"], 'isoformat') else str(message["created_at"]),
+                    "attachment": attachment,
+                    "file_url": attachment.get("file_url") if attachment else None,
+                    "file_name": attachment.get("file_name") if attachment else None,
+                    "file_type": attachment.get("file_type") if attachment else None,
+                    "is_archived": message.get("is_archived", False)
                 }
-                await manager.broadcast_new_message(channel_id, message_dict)
+                print(f"Broadcasting file message: {message_dict['id']} - {message_dict['message'][:50]}...")
+                # Only broadcast to other users, not the sender
+                await manager.broadcast_new_message_exclude_user(channel_id, message_dict, current_user.id)
 
             return {"messages": messages}
         except Exception as e:

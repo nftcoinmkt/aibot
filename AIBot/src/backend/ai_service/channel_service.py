@@ -214,7 +214,7 @@ class ChannelService:
                     ChannelMessage.created_at >= cutoff_date
                 )
             )
-            .order_by(ChannelMessage.created_at.desc())
+            .order_by(ChannelMessage.created_at.asc())  # Changed to ascending for chronological order
             .offset(skip)
             .limit(limit)
             .all()
@@ -241,7 +241,7 @@ class ChannelService:
         messages = (
             db.query(ChannelMessage)
             .filter(ChannelMessage.channel_id == channel_id)
-            .order_by(ChannelMessage.created_at.desc())
+            .order_by(ChannelMessage.created_at.asc())  # Changed to ascending for chronological order
             .offset(skip)
             .limit(limit)
             .all()

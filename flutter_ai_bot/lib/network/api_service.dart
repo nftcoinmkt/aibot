@@ -148,12 +148,15 @@ class ApiService {
   }
 
   Future<void> setToken(String token, {int? userId}) async {
+    print('💾 Storing token: ${token.substring(0, 20)}... with key: $_tokenKey');
     await _storage.write(key: _tokenKey, value: token);
     _userToken = token;
     if (userId != null) {
       _userId = userId;
       await _storage.write(key: 'user_id', value: userId.toString());
+      print('👤 Stored user ID: $userId');
     }
+    print('✅ Token and user data stored successfully');
   }
 
   Future<bool> tryLoadToken() async {
@@ -170,7 +173,9 @@ class ApiService {
   int? getUserId() => _userId;
 
   Future<String?> getToken() async {
-    return await _storage.read(key: 'auth_token');
+    final token = await _storage.read(key: _tokenKey);
+    print('🔑 Token retrieval: ${token != null ? "Found token (${token.substring(0, 20)}...)" : "No token found"}');
+    return token;
   }
 
 

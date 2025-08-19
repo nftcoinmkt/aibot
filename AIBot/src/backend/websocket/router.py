@@ -28,7 +28,7 @@ async def websocket_endpoint(
             return
         
         # Connect to channel
-        await manager.connect(websocket, channel_id, user.id, user.username)
+        await manager.connect(websocket, channel_id, user.id, user.email)
         
         try:
             while True:
@@ -38,14 +38,7 @@ async def websocket_endpoint(
                 
                 message_type = message_data.get("type")
                 
-                if message_type == "typing":
-                    # Handle typing indicator
-                    is_typing = message_data.get("is_typing", False)
-                    await manager.broadcast_typing_status(
-                        channel_id, user.id, user.username, is_typing
-                    )
-                
-                elif message_type == "ping":
+                if message_type == "ping":
                     # Handle ping/keepalive
                     await manager.send_personal_message(websocket, {
                         "type": "pong",
@@ -59,7 +52,7 @@ async def websocket_endpoint(
                         "type": "message_read",
                         "message_id": message_id,
                         "user_id": user.id,
-                        "user_name": user.username
+                        "user_name": user.email
                     }, exclude_websocket=websocket)
         
         except WebSocketDisconnect:
@@ -73,7 +66,7 @@ async def websocket_endpoint(
     
     finally:
         # Clean up connection
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)
 
 
 @router.websocket("/ws/channels/{channel_id}/simple")
@@ -96,12 +89,7 @@ async def simple_websocket_endpoint(
                 
                 message_type = message_data.get("type")
                 
-                if message_type == "typing":
-                    is_typing = message_data.get("is_typing", False)
-                    await manager.broadcast_typing_status(
-                        channel_id, user_id, user_name, is_typing
-                    )
-                elif message_type == "ping":
+                if message_type == "ping":
                     await manager.send_personal_message(websocket, {
                         "type": "pong",
                         "timestamp": message_data.get("timestamp")
@@ -113,4 +101,4 @@ async def simple_websocket_endpoint(
             print(f"Simple WebSocket error: {e}")
     
     finally:
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)

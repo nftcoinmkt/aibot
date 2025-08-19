@@ -35,7 +35,7 @@ class _ChatViewState extends State<ChatView> {
   final TextEditingController _controller = TextEditingController();
   List<ChatMessage> _messages = [];
   int? _currentUserId;
-  bool _isTyping = false;
+
   bool _isLoading = true;
   bool _showingAllMessages = false;
   final PlatformFileUploader _fileUploader = getPlatformFileUploader();
@@ -49,27 +49,33 @@ class _ChatViewState extends State<ChatView> {
   // WebSocket for real-time updates
   WebSocketService? _webSocketService;
   StreamSubscription<ChatMessage>? _newMessageSubscription;
-  StreamSubscription<Map<String, dynamic>>? _typingSubscription;
+
   StreamSubscription<List<Map<String, dynamic>>>? _onlineUsersSubscription;
 
   // Real-time state
-  Set<int> _typingUsers = {};
   List<Map<String, dynamic>> _onlineUsers = [];
-  Timer? _typingTimer;
+
+  // User mapping for displaying names
+  Map<int, String> _userNames = {};
 
   @override
   void initState() {
     super.initState();
     _currentUserId = widget.apiService.getUserId();
     _loadMessages();
+    _loadChannelMembers();
     _initializeWebSocket();
 
-    _controller.addListener(() {
+
+
+    // Update UI every 5 seconds to reflect WebSocket connection status
+    Timer.periodic(const Duration(seconds: 5), (timer) {
       if (mounted) {
         setState(() {
-          _isTyping = _controller.text.isNotEmpty;
+          // This will trigger a rebuild to update the connection status indicator
         });
-        _handleTypingStatus();
+      } else {
+        timer.cancel();
       }
     });
   }
@@ -79,54 +85,51 @@ class _ChatViewState extends State<ChatView> {
     _controller.dispose();
     _webSocketService?.dispose();
     _newMessageSubscription?.cancel();
-    _typingSubscription?.cancel();
     _onlineUsersSubscription?.cancel();
-    _typingTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _initializeWebSocket() async {
     try {
+      print('🚀 Initializing WebSocket for channel: ${widget.channel.id}');
       _webSocketService = WebSocketService();
       final token = await widget.apiService.getToken();
 
+      print('🔑 Retrieved token: ${token != null ? "✅ Available" : "❌ Missing"}');
       if (token != null) {
+        print('🔌 Connecting to WebSocket...');
         await _webSocketService!.connect(widget.channel.id, token);
 
         // Listen for new messages
+        print('👂 Setting up WebSocket message listener...');
         _newMessageSubscription = _webSocketService!.newMessageStream?.listen((message) {
+          print('📨 Received new message via WebSocket: ${message.id}');
           if (mounted) {
             setState(() {
               // Only add if not already in the list (avoid duplicates)
-              final exists = _messages.any((m) => m.id == message.id);
+              // Check both by ID and by content/timestamp for better deduplication
+              final exists = _messages.any((m) =>
+                m.id == message.id ||
+                (m.message == message.message &&
+                 m.userId == message.userId &&
+                 m.timestamp.difference(message.timestamp).abs().inSeconds < 2)
+              );
+
               if (!exists) {
-                _messages.insert(0, message);
+                print('✅ Adding new WebSocket message: ${message.id} - ${message.message.substring(0, message.message.length > 50 ? 50 : message.message.length)}...');
+                // Insert at the correct position to maintain chronological order
+                _insertMessageInOrder(message);
                 if (message.id > _lastMessageId) {
                   _lastMessageId = message.id;
                 }
+              } else {
+                print('⚠️ Duplicate message detected, skipping: ${message.id}');
               }
             });
           }
         });
 
-        // Listen for typing status
-        _typingSubscription = _webSocketService!.typingStream?.listen((data) {
-          if (mounted) {
-            final type = data['type'] as String;
-            if (type == 'typing_status') {
-              final userId = data['user_id'] as int;
-              final isTyping = data['is_typing'] as bool;
 
-              setState(() {
-                if (isTyping && userId != _currentUserId) {
-                  _typingUsers.add(userId);
-                } else {
-                  _typingUsers.remove(userId);
-                }
-              });
-            }
-          }
-        });
 
         // Listen for online users
         _onlineUsersSubscription = _webSocketService!.onlineUsersStream?.listen((users) {
@@ -138,34 +141,59 @@ class _ChatViewState extends State<ChatView> {
         });
       }
     } catch (e) {
-      print('Failed to initialize WebSocket: $e');
-    }
-  }
-
-  void _handleTypingStatus() {
-    // Cancel previous timer
-    _typingTimer?.cancel();
-
-    // Send typing status
-    if (_isTyping) {
-      _webSocketService?.sendTypingStatus(true);
-
-      // Set timer to stop typing after 2 seconds of inactivity
-      _typingTimer = Timer(const Duration(seconds: 2), () {
-        _webSocketService?.sendTypingStatus(false);
-      });
-    } else {
-      _webSocketService?.sendTypingStatus(false);
+      print('❌ Failed to initialize WebSocket: $e');
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to connect to real-time chat: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
 
+
+
+
+  void _insertMessageInOrder(ChatMessage message) {
+    // Find the correct position to insert the message based on timestamp
+    // Since ListView is reversed, newer messages (later timestamps) go at lower indices
+    int insertIndex = 0;
+
+    // If list is empty, just add at index 0
+    if (_messages.isEmpty) {
+      _messages.insert(0, message);
+      return;
+    }
+
+    // Find the correct position
+    for (int i = 0; i < _messages.length; i++) {
+      if (message.timestamp.isAfter(_messages[i].timestamp)) {
+        insertIndex = i;
+        break;
+      }
+      insertIndex = i + 1;
+    }
+
+    // Ensure we don't exceed list bounds
+    if (insertIndex > _messages.length) {
+      insertIndex = _messages.length;
+    }
+
+    _messages.insert(insertIndex, message);
+    print('Inserted message at index $insertIndex of ${_messages.length} total messages');
+  }
 
   void _loadMessages() async {
     try {
       final historicalMessages = await widget.apiService.getChannelMessages(widget.channel.id);
       if (mounted) {
         setState(() {
+          // Backend returns messages in chronological order (oldest first)
+          // Reverse for ListView (newest first at index 0)
           _messages = historicalMessages.reversed.toList();
           if (_messages.isNotEmpty) {
             _lastMessageId = _messages.first.id;
@@ -191,6 +219,8 @@ class _ChatViewState extends State<ChatView> {
       final allMessages = await widget.apiService.getAllChannelMessages(widget.channel.id);
       if (mounted) {
         setState(() {
+          // Backend returns messages in chronological order (oldest first)
+          // Reverse for ListView (newest first at index 0)
           _messages = allMessages.reversed.toList();
           if (_messages.isNotEmpty) {
             _lastMessageId = _messages.first.id;
@@ -204,6 +234,25 @@ class _ChatViewState extends State<ChatView> {
           SnackBar(content: Text('Failed to load all messages: $e')),
         );
       }
+    }
+  }
+
+  void _loadChannelMembers() async {
+    try {
+      final members = await widget.apiService.getChannelMembers(widget.channel.id);
+      if (mounted) {
+        setState(() {
+          // Create mapping of user ID to full name
+          _userNames = {
+            for (var member in members)
+              member.userId: member.user?.fullName ?? 'User ${member.userId}'
+          };
+          print('📋 Loaded ${_userNames.length} channel members: $_userNames');
+        });
+      }
+    } catch (e) {
+      print('❌ Failed to load channel members: $e');
+      // Don't show error to user as this is not critical
     }
   }
 
@@ -227,9 +276,6 @@ class _ChatViewState extends State<ChatView> {
 
     final messageText = _controller.text;
     _controller.clear();
-    setState(() {
-      _isTyping = false;
-    });
 
     // Create a temporary message to show immediately
     final tempMessage = ChatMessage(
@@ -243,24 +289,31 @@ class _ChatViewState extends State<ChatView> {
 
     // Add message to UI immediately
     setState(() {
-      _messages.insert(0, tempMessage);
+      _insertMessageInOrder(tempMessage);
     });
 
     try {
       // Send message via API to ensure it's saved
+      print('Sending message to API: $messageText');
       final messages = await widget.apiService.sendMessageInChannel(widget.channel.id, messageText);
+      print('Received ${messages.length} messages from API');
 
       // Remove the temporary message and add the real messages (user + AI response)
       setState(() {
         final index = _messages.indexWhere((m) => m.id == tempMessage.id);
         if (index != -1) {
           _messages.removeAt(index);
+          print('Removed temporary message at index $index');
         }
 
-        // Add the messages in chronological order (user message first, then AI response)
-        // The ListView is reversed, so newer messages appear at the top
-        for (final message in messages) {
-          _messages.insert(0, message.copyWith(status: MessageStatus.sent));
+        // Add the messages in chronological order
+        // Sort the received messages by timestamp to ensure proper order
+        final sortedMessages = messages.toList()
+          ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+        for (final message in sortedMessages) {
+          print('Adding API message: ${message.id} - ${message.message.substring(0, message.message.length > 50 ? 50 : message.message.length)}...');
+          _insertMessageInOrder(message.copyWith(status: MessageStatus.sent));
           if (message.id > _lastMessageId) {
             _lastMessageId = message.id;
           }
@@ -288,9 +341,6 @@ class _ChatViewState extends State<ChatView> {
     final messageText = text.isNotEmpty ? text : '';
 
     _controller.clear();
-    setState(() {
-      _isTyping = false;
-    });
 
     // Create placeholder message
     final tempId = DateTime.now().millisecondsSinceEpoch;
@@ -308,7 +358,7 @@ class _ChatViewState extends State<ChatView> {
     );
 
     setState(() {
-      _messages.insert(0, placeholder);
+      _insertMessageInOrder(placeholder);
     });
 
     try {
@@ -363,9 +413,12 @@ class _ChatViewState extends State<ChatView> {
         // Remove placeholder
         _messages.removeWhere((m) => m.id == tempId);
 
-        // Add all messages (user + AI response)
-        for (final message in messages) {
-          _messages.insert(0, message.copyWith(status: MessageStatus.sent));
+        // Add all messages (user + AI response) in chronological order
+        final sortedMessages = messages.toList()
+          ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+        for (final message in sortedMessages) {
+          _insertMessageInOrder(message.copyWith(status: MessageStatus.sent));
           if (message.id > _lastMessageId) {
             _lastMessageId = message.id;
           }
@@ -582,12 +635,25 @@ class _ChatViewState extends State<ChatView> {
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
-                      'Online',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 12,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: _webSocketService?.isConnected == true ? Colors.green : Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _webSocketService?.isConnected == true ? 'Connected' : 'Disconnected',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -596,6 +662,17 @@ class _ChatViewState extends State<ChatView> {
           ),
         ),
         actions: [
+          // WebSocket reconnect button
+          IconButton(
+            icon: Icon(
+              _webSocketService?.isConnected == true ? CupertinoIcons.wifi : CupertinoIcons.wifi_slash,
+              color: _webSocketService?.isConnected == true ? Colors.white : Colors.red,
+            ),
+            onPressed: () async {
+              print('🔄 Manual WebSocket reconnection requested');
+              await _initializeWebSocket();
+            },
+          ),
           IconButton(
             icon: const Icon(CupertinoIcons.info_circle, color: Colors.white),
             onPressed: () {
@@ -672,16 +749,9 @@ class _ChatViewState extends State<ChatView> {
                                   child: ListView.builder(
                                     reverse: true,
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                    itemCount: _messages.length + (_typingUsers.isNotEmpty ? 1 : 0),
+                                    itemCount: _messages.length,
                                     itemBuilder: (context, index) {
-                                      // Show typing indicator at the bottom (index 0 when reversed)
-                                      if (index == 0 && _typingUsers.isNotEmpty) {
-                                        return _buildTypingIndicator();
-                                      }
-
-                                      // Adjust index for actual messages
-                                      final messageIndex = _typingUsers.isNotEmpty ? index - 1 : index;
-                                      final message = _messages[messageIndex];
+                                      final message = _messages[index];
                                       final isMe = message.userId == _currentUserId;
                                       final isAI = message.userId == -1; // AI messages have userId -1
                                       return _buildMessageBubble(message, isMe, isAI: isAI);
@@ -776,7 +846,8 @@ class _ChatViewState extends State<ChatView> {
     } else if (isMe) {
       return 'You';
     } else {
-      return 'User'; // Could be enhanced to show actual user names
+      // Use the user mapping to get the actual user name
+      return _userNames[message.userId] ?? 'User ${message.userId}';
     }
   }
 
@@ -843,11 +914,14 @@ class _ChatViewState extends State<ChatView> {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                _formatTime(message.timestamp),
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 11,
+              Tooltip(
+                message: _formatFullTimestamp(message.timestamp),
+                child: Text(
+                  _formatTime(message.timestamp),
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
@@ -966,44 +1040,7 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _buildTypingIndicator() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _typingUsers.length == 1 ? 'Someone is typing' : '${_typingUsers.length} people are typing',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildMessageComposer() {
     return Container(
@@ -1127,13 +1164,13 @@ class _ChatViewState extends State<ChatView> {
                 width: 45,
                 height: 45,
                 decoration: BoxDecoration(
-                  color: (_isTyping || _selectedFile != null) ? const Color(0xFF25D366) : Colors.grey[400],
+                  color: (_controller.text.isNotEmpty || _selectedFile != null) ? const Color(0xFF25D366) : Colors.grey[400],
                   borderRadius: BorderRadius.circular(22.5),
                 ),
                 child: IconButton(
-                  onPressed: (_isTyping || _selectedFile != null) ? _sendMessage : null,
+                  onPressed: (_controller.text.isNotEmpty || _selectedFile != null) ? _sendMessage : null,
                   icon: Icon(
-                    (_isTyping || _selectedFile != null) ? CupertinoIcons.paperplane_fill : CupertinoIcons.mic_fill,
+                    (_controller.text.isNotEmpty || _selectedFile != null) ? CupertinoIcons.paperplane_fill : CupertinoIcons.mic_fill,
                     color: Colors.white,
                     size: 20,
                   ),
@@ -1149,12 +1186,27 @@ class _ChatViewState extends State<ChatView> {
   String _formatTime(DateTime timestamp) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
     final messageDate = DateTime(timestamp.year, timestamp.month, timestamp.day);
-    
+
     if (messageDate == today) {
+      // Today: show time (HH:MM)
       return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+    } else if (messageDate == yesterday) {
+      // Yesterday: show "Yesterday"
+      return 'Yesterday';
+    } else if (now.difference(timestamp).inDays < 7) {
+      // This week: show day name
+      const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return weekdays[timestamp.weekday - 1];
     } else {
-      return '${timestamp.day}/${timestamp.month}';
+      // Older: show date (DD/MM)
+      return '${timestamp.day.toString().padLeft(2, '0')}/${timestamp.month.toString().padLeft(2, '0')}';
     }
+  }
+
+  String _formatFullTimestamp(DateTime timestamp) {
+    return '${timestamp.day.toString().padLeft(2, '0')}/${timestamp.month.toString().padLeft(2, '0')}/${timestamp.year} '
+           '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}:${timestamp.second.toString().padLeft(2, '0')}';
   }
 }
