@@ -6,6 +6,7 @@ from src.backend.core.settings import settings
 from src.backend.core.security import get_password_hash, verify_password, create_access_token
 from src.backend.shared.database_manager import get_default_db, get_tenant_db, create_tenant_database
 from src.backend.shared.email_service import email_service
+from .tenant_config import FixedTenants
 from . import models, schemas
 import secrets
 from datetime import datetime, timedelta
@@ -42,7 +43,14 @@ class UserManagementService:
 
     def create_user(self, db: Session, user: schemas.UserCreate) -> models.User:
         """Create a new user."""
-        # Check if user already exists
+        # Validate tenant
+        if not FixedTenants.is_valid_tenant(user.tenant_name):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid organization. Please select from available organizations.",
+            )
+
+        # Check if user already exists by email
         db_user = self.get_user_by_email(db=db, email=user.email)
         if db_user:
             raise HTTPException(
@@ -69,9 +77,13 @@ class UserManagementService:
         db.commit()
         db.refresh(db_user)
         
-        # Send welcome email
-        email_service.send_welcome_email(user.email, user.full_name, tenant.name)
-        
+        # Send welcome email (optional - don't fail signup if email fails)
+        try:
+            email_service.send_welcome_email(user.email, user.full_name, tenant.name)
+        except Exception as e:
+            print(f"Warning: Failed to send welcome email to {user.email}: {e}")
+            # Continue with signup even if email fails
+
         return db_user
 
     def authenticate_user(self, db: Session, email: str, password: str) -> Optional[models.User]:

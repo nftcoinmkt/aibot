@@ -76,6 +76,10 @@ app.include_router(channels_router.router, prefix=settings.API_V1_STR, tags=["ch
 from src.backend.websocket import router as websocket_router
 app.include_router(websocket_router.router, tags=["websocket"])
 
+# Import and include Seed router
+from src.backend.seed_router import router as seed_router
+app.include_router(seed_router, prefix=settings.API_V1_STR, tags=["seed"])
+
 # Mount static files for uploads
 import os
 uploads_dir = "uploads"

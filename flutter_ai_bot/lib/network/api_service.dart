@@ -28,9 +28,28 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> signup(String email, String password, String fullName, String tenantName) async {
+  Future<List<Map<String, dynamic>>> getAvailableTenants() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/api/v1/auth/tenants'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<Map<String, dynamic>>.from(data['tenants']);
+    } else {
+      throw Exception('Failed to load tenants: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> signup(
+    String email,
+    String password,
+    String fullName,
+    String tenantName
+  ) async {
     final response = await http.post(
-      Uri.parse('$_baseUrl/signup'),
+      Uri.parse('$_baseUrl/api/v1/auth/signup'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': email,
@@ -40,16 +59,25 @@ class ApiService {
       }),
     );
 
-    if (response.statusCode == 200) {
+    if (response.statusCode == 201) {
       return jsonDecode(response.body);
     } else {
-      throw Exception('Failed to signup: ${response.body}');
+      String errorMessage = 'Failed to signup';
+      try {
+        final errorData = jsonDecode(response.body);
+        if (errorData['detail'] != null) {
+          errorMessage = errorData['detail'];
+        }
+      } catch (e) {
+        errorMessage = 'Failed to signup: ${response.body}';
+      }
+      throw Exception(errorMessage);
     }
   }
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await http.post(
-      Uri.parse('$_baseUrl/login/access-token'),
+      Uri.parse('$_baseUrl/api/v1/auth/login/access-token'),
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: {
         'username': email,
@@ -60,7 +88,20 @@ class ApiService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
-      throw Exception('Failed to login: ${response.body}');
+      String errorMessage = 'Failed to login';
+      try {
+        final errorData = jsonDecode(response.body);
+        if (errorData['detail'] != null) {
+          errorMessage = errorData['detail'];
+        }
+      } catch (e) {
+        if (response.statusCode == 400) {
+          errorMessage = 'Invalid email or password';
+        } else {
+          errorMessage = 'Login failed: ${response.body}';
+        }
+      }
+      throw Exception(errorMessage);
     }
   }
 

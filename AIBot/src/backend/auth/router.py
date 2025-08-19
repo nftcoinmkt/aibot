@@ -11,9 +11,19 @@ from src.backend.core.security import create_access_token
 from src.backend.shared.database_manager import get_default_db
 from .user_management import user_management_service, password_reset_service
 from .authentication_service import get_current_active_user, get_current_active_admin
+from .tenant_config import FixedTenants
 from . import models, schemas
 
 router = APIRouter()
+
+@router.get("/tenants")
+def get_available_tenants():
+    """
+    Get list of available tenants/organizations for signup.
+    """
+    return {
+        "tenants": FixedTenants.get_available_tenants()
+    }
 
 @router.post("/signup", response_model=schemas.User, status_code=201)
 def create_user(user_in: schemas.UserCreate, db: Session = Depends(get_default_db)):

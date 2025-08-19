@@ -1,0 +1,205 @@
+name: Seed GCP Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to seed (staging/production)'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+      force_reseed:
+        description: 'Force reseed (will recreate all data)'
+        required: false
+        default: false
+        type: boolean
+  
+  # Automatically seed after successful deployment
+  workflow_run:
+    workflows: ["Deploy to GCP"]
+    types:
+      - completed
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  SERVICE_NAME: aibot-backend
+
+jobs:
+  seed-data:
+    name: Seed Data in GCP
+    runs-on: ubuntu-latest
+    
+    # Only run if deployment was successful or manually triggered
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        cd AIBot
+        pip install -r requirements.txt
+        pip install requests  # For seeding script
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+    
+    - name: Get Cloud Run Service URL
+      id: get-url
+      run: |
+        # Get the URL of the deployed Cloud Run service
+        SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
+          --region=$REGION \
+          --format='value(status.url)')
+        
+        echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_OUTPUT
+        echo "🌐 Service URL: $SERVICE_URL"
+    
+    - name: Wait for service to be ready
+      run: |
+        echo "⏳ Waiting for service to be ready..."
+        SERVICE_URL="${{ steps.get-url.outputs.SERVICE_URL }}"
+        
+        # Wait up to 5 minutes for service to be ready
+        for i in {1..30}; do
+          if curl -f -s "$SERVICE_URL/health" > /dev/null; then
+            echo "✅ Service is ready!"
+            break
+          fi
+          echo "⏳ Attempt $i/30: Service not ready yet, waiting 10 seconds..."
+          sleep 10
+        done
+        
+        # Final check
+        if ! curl -f -s "$SERVICE_URL/health" > /dev/null; then
+          echo "❌ Service is not ready after 5 minutes"
+          exit 1
+        fi
+    
+    - name: Check if data already exists
+      id: check-data
+      run: |
+        SERVICE_URL="${{ steps.get-url.outputs.SERVICE_URL }}"
+        
+        # Try to get channels (this will fail if no data exists)
+        if curl -f -s "$SERVICE_URL/api/v1/channels" > /dev/null 2>&1; then
+          echo "DATA_EXISTS=true" >> $GITHUB_OUTPUT
+          echo "📊 Data already exists"
+        else
+          echo "DATA_EXISTS=false" >> $GITHUB_OUTPUT
+          echo "📭 No existing data found"
+        fi
+    
+    - name: Seed initial data
+      if: |
+        steps.check-data.outputs.DATA_EXISTS == 'false' || 
+        github.event.inputs.force_reseed == 'true'
+      run: |
+        cd AIBot
+        SERVICE_URL="${{ steps.get-url.outputs.SERVICE_URL }}"
+        
+        echo "🌱 Starting data seeding..."
+        echo "🎯 Target: $SERVICE_URL"
+        echo "🔄 Force reseed: ${{ github.event.inputs.force_reseed }}"
+        
+        # Set environment variables for the seeding script
+        export BACKEND_URL="$SERVICE_URL"
+        export ENVIRONMENT="${{ github.event.inputs.environment || 'staging' }}"
+        
+        # Run the seeding script
+        python scripts/seed_data.py
+    
+    - name: Verify seeded data
+      run: |
+        SERVICE_URL="${{ steps.get-url.outputs.SERVICE_URL }}"
+        
+        echo "🔍 Verifying seeded data..."
+        
+        # Check health
+        echo "Checking health endpoint..."
+        curl -f "$SERVICE_URL/health" || exit 1
+        
+        # Check if we can access the API docs
+        echo "Checking API documentation..."
+        curl -f -s "$SERVICE_URL/docs" > /dev/null || exit 1
+        
+        echo "✅ Data seeding verification completed!"
+    
+    - name: Create seeding summary
+      run: |
+        cat << EOF > seeding-summary.md
+        # 🌱 Data Seeding Summary
+        
+        **Environment:** ${{ github.event.inputs.environment || 'staging' }}
+        **Service URL:** ${{ steps.get-url.outputs.SERVICE_URL }}
+        **Timestamp:** $(date -u)
+        **Triggered by:** ${{ github.event_name }}
+        
+        ## ✅ Seeded Data:
+        - 👤 **Admin User**: admin@aibot.com
+        - 👥 **Sample Users**: alice, bob, charlie, diana
+        - 📢 **Sample Channels**: General Discussion, AI Development, Project Updates, Random
+        - 💬 **Sample Messages**: Welcome messages and conversation starters
+        
+        ## 🔗 Access Information:
+        - **API Docs**: ${{ steps.get-url.outputs.SERVICE_URL }}/docs
+        - **Health Check**: ${{ steps.get-url.outputs.SERVICE_URL }}/health
+        
+        ## 🔐 Test Credentials:
+        - **Admin**: admin / admin123
+        - **User 1**: alice / alice123 (company1)
+        - **User 2**: bob / bob123 (company1)
+        - **User 3**: charlie / charlie123 (company2)
+        - **User 4**: diana / diana123 (company2, admin)
+        EOF
+        
+        echo "📋 Seeding Summary:"
+        cat seeding-summary.md
+    
+    - name: Upload seeding summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: seeding-summary-${{ github.event.inputs.environment || 'staging' }}
+        path: seeding-summary.md
+        retention-days: 30
+
+  notify-completion:
+    name: Notify Completion
+    runs-on: ubuntu-latest
+    needs: seed-data
+    if: always()
+    
+    steps:
+    - name: Notify success
+      if: needs.seed-data.result == 'success'
+      run: |
+        echo "🎉 Data seeding completed successfully!"
+        echo "✅ Environment: ${{ github.event.inputs.environment || 'staging' }}"
+        echo "🔗 Check the artifacts for detailed summary"
+    
+    - name: Notify failure
+      if: needs.seed-data.result == 'failure'
+      run: |
+        echo "❌ Data seeding failed!"
+        echo "🔍 Check the logs for details"
+        exit 1

@@ -17,14 +17,43 @@ class _SignupViewState extends State<SignupView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _fullNameController = TextEditingController();
-  final _tenantNameController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+
+  // Organization/Tenant selection
+  List<Map<String, dynamic>> _availableTenants = [];
+  String? _selectedTenantId;
+  bool _loadingTenants = true;
 
   @override
   void initState() {
     super.initState();
     _apiService = widget.apiService;
+    _loadAvailableTenants();
+  }
+
+  Future<void> _loadAvailableTenants() async {
+    try {
+      final tenants = await _apiService.getAvailableTenants();
+      if (mounted) {
+        setState(() {
+          _availableTenants = tenants;
+          _loadingTenants = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadingTenants = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load organizations: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _signup() async {
@@ -34,11 +63,15 @@ class _SignupViewState extends State<SignupView> {
       });
 
       try {
+        if (_selectedTenantId == null) {
+          throw Exception('Please select an organization');
+        }
+
         final result = await _apiService.signup(
           _emailController.text,
           _passwordController.text,
           _fullNameController.text,
-          _tenantNameController.text,
+          _selectedTenantId!,
         );
         
         if (mounted) {
@@ -67,6 +100,106 @@ class _SignupViewState extends State<SignupView> {
         }
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _fullNameController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildOrganizationDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Organization',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF374151),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: _loadingTenants
+              ? const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 12),
+                      Text('Loading organizations...'),
+                    ],
+                  ),
+                )
+              : DropdownButtonFormField<String>(
+                  value: _selectedTenantId,
+                  decoration: const InputDecoration(
+                    hintText: 'Select your organization',
+                    prefixIcon: Icon(CupertinoIcons.building_2_fill, color: Color(0xFF6B7280)),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  ),
+                  items: _availableTenants.map((tenant) {
+                    return DropdownMenuItem<String>(
+                      value: tenant['id'],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            tenant['name'],
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (tenant['description'] != null)
+                            Text(
+                              tenant['description'],
+                              style: const TextStyle(
+                                color: Color(0xFF6B7280),
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedTenantId = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select an organization';
+                    }
+                    return null;
+                  },
+                ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -197,18 +330,7 @@ class _SignupViewState extends State<SignupView> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    _buildInputField(
-                      controller: _tenantNameController,
-                      label: 'Organization Name',
-                      hint: 'Enter your organization name',
-                      icon: CupertinoIcons.building_2_fill,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your organization name';
-                        }
-                        return null;
-                      },
-                    ),
+                    _buildOrganizationDropdown(),
                     const SizedBox(height: 32),
                     SizedBox(
                       width: double.infinity,
