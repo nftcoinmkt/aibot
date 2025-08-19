@@ -212,11 +212,7 @@ class ChatService:
                 print(f"Broadcasting {len(messages)} messages to channel {channel_id} via WebSocket")
                 for message_dict in messages:
                     print(f"Broadcasting message: {message_dict['id']} - {message_dict['message'][:50]}...")
-                    # Convert datetime to ISO string for JSON serialization
-                    broadcast_dict = message_dict.copy()
-                    if 'created_at' in broadcast_dict and broadcast_dict['created_at']:
-                        broadcast_dict['created_at'] = broadcast_dict['created_at'].isoformat()
-                    await manager.broadcast_new_message_exclude_user(channel_id, broadcast_dict, user_id)
+                    await manager.broadcast_new_message_exclude_user(channel_id, message_dict, user_id)
             else:
                 print("WebSocket manager not available for broadcasting")
 
