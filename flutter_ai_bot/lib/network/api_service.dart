@@ -30,7 +30,7 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> getAvailableTenants() async {
     final response = await http.get(
-      Uri.parse('$_baseUrl/api/v1/auth/tenants'),
+      Uri.parse('$_baseUrl/auth/tenants'),
       headers: {'Content-Type': 'application/json'},
     );
 
@@ -49,7 +49,7 @@ class ApiService {
     String tenantName
   ) async {
     final response = await http.post(
-      Uri.parse('$_baseUrl/api/v1/auth/signup'),
+      Uri.parse('$_baseUrl/auth/signup'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': email,
@@ -77,7 +77,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await http.post(
-      Uri.parse('$_baseUrl/api/v1/auth/login/access-token'),
+      Uri.parse('$_baseUrl/auth/login/access-token'),
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: {
         'username': email,
