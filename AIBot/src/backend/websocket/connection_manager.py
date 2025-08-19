@@ -48,7 +48,7 @@ class ConnectionManager:
             "users": online_users
         })
     
-    def disconnect(self, websocket: WebSocket):
+    async def disconnect(self, websocket: WebSocket):
         """Remove a WebSocket connection."""
         if websocket in self.connection_users:
             user_info = self.connection_users[websocket]
@@ -75,12 +75,12 @@ class ConnectionManager:
             del self.connection_users[websocket]
             
             # Notify others about user leaving
-            asyncio.create_task(self.broadcast_to_channel(channel_id, {
+            await self.broadcast_to_channel(channel_id, {
                 "type": "user_left",
                 "user_id": user_id,
                 "user_name": user_name,
-                "timestamp": datetime.utcnow().isoformat()
-            }))
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
     
     async def send_personal_message(self, websocket: WebSocket, message: dict):
         """Send a message to a specific WebSocket connection."""

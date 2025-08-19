@@ -358,7 +358,7 @@ async def upload_file_to_channel(
         
         # Process the file upload and get AI analysis
         try:
-            messages = chat_service.process_file_upload(
+            messages = await chat_service.process_file_upload(
                 user_id=current_user.id,
                 tenant_name=current_user.tenant_name,
                 channel_id=channel_id,
@@ -385,7 +385,7 @@ async def upload_file_to_channel(
                     "file_type": message.file_type,
                     "is_archived": message.is_archived
                 }
-                asyncio.create_task(manager.broadcast_new_message(channel_id, message_dict))
+                await manager.broadcast_new_message(channel_id, message_dict)
 
             return {"messages": messages}
         except Exception as e:

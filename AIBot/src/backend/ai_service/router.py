@@ -27,7 +27,7 @@ def chat_with_ai(
     return {"response": response, "provider": provider}
 
 @router.post("/channels/{channel_id}/chat", response_model=schemas.ChannelChatResponse)
-def chat_in_channel(
+async def chat_in_channel(
     channel_id: int,
     request: schemas.ChatRequest,
     current_user: User = Depends(get_current_active_user),
@@ -36,7 +36,7 @@ def chat_in_channel(
     """
     Chat with AI in a specific channel. Returns both user message and AI response.
     """
-    message_dicts = chat_service.process_channel_message(
+    message_dicts = await chat_service.process_channel_message(
         current_user.id, current_user.tenant_name, request.message, channel_id
     )
 

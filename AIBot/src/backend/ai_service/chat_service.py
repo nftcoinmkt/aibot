@@ -3,7 +3,7 @@ from typing import TypedDict, Tuple, List, AsyncGenerator
 import os
 import asyncio
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.backend.core.settings import settings
 from src.backend.shared.database_manager import get_tenant_db
@@ -90,7 +90,7 @@ class ChatService:
                     response=response,
                     provider=provider,
                     message_type="ai" if response else "user",
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc)
                 )
             else:
                 # Save as direct message
@@ -99,7 +99,7 @@ class ChatService:
                     message=message,
                     response=response,
                     provider=provider,
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc)
                 )
             
             db.add(chat_message)
@@ -132,7 +132,7 @@ class ChatService:
         
         return response, provider
 
-    def process_channel_message(
+    async def process_channel_message(
         self,
         user_id: int,
         tenant_name: str,
@@ -162,7 +162,7 @@ class ChatService:
                 user_id=user_id,
                 message=message,
                 message_type="user",
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(user_message)
             db.commit()
@@ -176,7 +176,7 @@ class ChatService:
                 response=response,
                 provider=provider,
                 message_type="ai",
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(ai_message)
             db.commit()
@@ -209,7 +209,7 @@ class ChatService:
             # Broadcast messages to WebSocket connections if manager is available
             if manager:
                 for message_dict in messages:
-                    asyncio.create_task(manager.broadcast_new_message(channel_id, message_dict))
+                    await manager.broadcast_new_message(channel_id, message_dict)
 
             return messages
         finally:
@@ -307,7 +307,7 @@ class ChatService:
                 channel_id
             )
 
-    def process_file_upload(
+    async def process_file_upload(
         self,
         user_id: int,
         tenant_name: str,
@@ -331,7 +331,7 @@ class ChatService:
                 user_id=user_id,
                 message=message_text,
                 message_type="user",
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 file_url=file_url,
                 file_name=file_name,
                 file_type=file_extension
@@ -363,7 +363,7 @@ class ChatService:
                 response=ai_response,
                 provider=provider,
                 message_type="ai",
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             db.add(ai_message)
             db.commit()
