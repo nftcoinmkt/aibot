@@ -5,7 +5,7 @@ Creates users, channels, and conversations for testing.
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 from sqlalchemy.orm import Session
 
@@ -78,25 +78,25 @@ def create_users():
     db = DefaultSessionLocal()
     
     try:
-        # Tenant 1 users
+        # Tenant 1 users (using valid tenant ID)
         tenant1_users = [
-            {"email": "admin1@company1.com", "password": "Admin123!", "full_name": "Alice Admin", "role": auth_schemas.UserRole.ADMIN},
-            {"email": "super1@company1.com", "password": "Super123!", "full_name": "Bob SuperUser", "role": auth_schemas.UserRole.SUPER_USER},
-            {"email": "user1@company1.com", "password": "User123!", "full_name": "Carol User", "role": auth_schemas.UserRole.USER},
-            {"email": "user2@company1.com", "password": "User123!", "full_name": "David User", "role": auth_schemas.UserRole.USER},
-            {"email": "user3@company1.com", "password": "User123!", "full_name": "Eve User", "role": auth_schemas.UserRole.USER},
+            {"email": "admin1@acme.com", "password": "Admin123!", "full_name": "Alice Admin", "role": auth_schemas.UserRole.ADMIN, "tenant_name": "acme_corp"},
+            {"email": "super1@acme.com", "password": "Super123!", "full_name": "Bob SuperUser", "role": auth_schemas.UserRole.SUPER_USER, "tenant_name": "acme_corp"},
+            {"email": "user1@acme.com", "password": "User123!", "full_name": "Carol User", "role": auth_schemas.UserRole.USER, "tenant_name": "acme_corp"},
+            {"email": "user2@acme.com", "password": "User123!", "full_name": "David User", "role": auth_schemas.UserRole.USER, "tenant_name": "acme_corp"},
+            {"email": "user3@acme.com", "password": "User123!", "full_name": "Eve User", "role": auth_schemas.UserRole.USER, "tenant_name": "acme_corp"},
         ]
         
-        # Tenant 2 users
+        # Tenant 2 users (using valid tenant ID)
         tenant2_users = [
-            {"email": "admin2@company2.com", "password": "Admin123!", "full_name": "Frank Admin", "role": auth_schemas.UserRole.ADMIN},
-            {"email": "super2@company2.com", "password": "Super123!", "full_name": "Grace SuperUser", "role": auth_schemas.UserRole.SUPER_USER},
-            {"email": "user4@company2.com", "password": "User123!", "full_name": "Henry User", "role": auth_schemas.UserRole.USER},
-            {"email": "user5@company2.com", "password": "User123!", "full_name": "Iris User", "role": auth_schemas.UserRole.USER},
-            {"email": "user6@company2.com", "password": "User123!", "full_name": "Jack User", "role": auth_schemas.UserRole.USER},
+            {"email": "admin2@techstartup.com", "password": "Admin123!", "full_name": "Frank Admin", "role": auth_schemas.UserRole.ADMIN, "tenant_name": "tech_startup"},
+            {"email": "super2@techstartup.com", "password": "Super123!", "full_name": "Grace SuperUser", "role": auth_schemas.UserRole.SUPER_USER, "tenant_name": "tech_startup"},
+            {"email": "user4@techstartup.com", "password": "User123!", "full_name": "Henry User", "role": auth_schemas.UserRole.USER, "tenant_name": "tech_startup"},
+            {"email": "user5@techstartup.com", "password": "User123!", "full_name": "Iris User", "role": auth_schemas.UserRole.USER, "tenant_name": "tech_startup"},
+            {"email": "user6@techstartup.com", "password": "User123!", "full_name": "Jack User", "role": auth_schemas.UserRole.USER, "tenant_name": "tech_startup"},
         ]
         
-        created_users = {"tenant1": [], "tenant2": []}
+        created_users = {"acme_corp": [], "tech_startup": []}
         
         # Create tenant1 users
         for user_data in tenant1_users:
@@ -104,7 +104,7 @@ def create_users():
                 email=user_data["email"],
                 password=user_data["password"],
                 full_name=user_data["full_name"],
-                tenant_name="tenant1"
+                tenant_name=user_data["tenant_name"]
             )
             user = user_management_service.create_user(db, user_create)
             # Update role
@@ -119,8 +119,8 @@ def create_users():
                 "role": user.role,
                 "tenant_name": user.tenant_name
             }
-            created_users["tenant1"].append(user_dict)
-            print(f"Created user: {user.email} ({user.role.value}) for tenant1")
+            created_users["acme_corp"].append(user_dict)
+            print(f"Created user: {user.email} ({user.role.value}) for acme_corp")
         
         # Create tenant2 users
         for user_data in tenant2_users:
@@ -128,7 +128,7 @@ def create_users():
                 email=user_data["email"],
                 password=user_data["password"],
                 full_name=user_data["full_name"],
-                tenant_name="tenant2"
+                tenant_name=user_data["tenant_name"]
             )
             user = user_management_service.create_user(db, user_create)
             # Update role
@@ -143,8 +143,8 @@ def create_users():
                 "role": user.role,
                 "tenant_name": user.tenant_name
             }
-            created_users["tenant2"].append(user_dict)
-            print(f"Created user: {user.email} ({user.role.value}) for tenant2")
+            created_users["tech_startup"].append(user_dict)
+            print(f"Created user: {user.email} ({user.role.value}) for tech_startup")
         
         return created_users
         
@@ -153,14 +153,14 @@ def create_users():
 
 def create_channels(users):
     """Create channels for both tenants."""
-    created_channels = {"tenant1": [], "tenant2": []}
+    created_channels = {"acme_corp": [], "tech_startup": []}
 
     tenant_channels_map = {
-        "tenant1": [
+        "acme_corp": [
             ("sales", "Sales team discussions and strategies"),
             ("HR", "Human Resources discussions and policies"),
         ],
-        "tenant2": [
+        "tech_startup": [
             ("administration", "Administrative processes and procedures"),
             ("employees", "General employee discussions and announcements"),
         ],
@@ -204,11 +204,11 @@ def create_channels(users):
 def create_conversations(users, channels):
     """Create conversations in each channel."""
     conversation_map = {
-        "tenant1": {
+        "acme_corp": {
             "sales": SALES_CONVERSATIONS,
             "HR": HR_CONVERSATIONS
         },
-        "tenant2": {
+        "tech_startup": {
             "administration": ADMINISTRATION_CONVERSATIONS,
             "employees": EMPLOYEES_CONVERSATIONS
         }
@@ -229,7 +229,7 @@ def create_conversations(users, channels):
                     days_ago = random.randint(1, 30)
                     hours_ago = random.randint(0, 23)
                     minutes_ago = random.randint(0, 59)
-                    timestamp = datetime.utcnow() - timedelta(
+                    timestamp = datetime.now(timezone.utc) - timedelta(
                         days=days_ago, hours=hours_ago, minutes=minutes_ago
                     )
 
@@ -252,8 +252,6 @@ def create_conversations(users, channels):
                         message_type="ai",
                         created_at=ai_timestamp,
                         message_length=len(message),
-                        response_length=len(ai_response),
-                        processing_time="0.5s",
                     )
                     db.add(ai_message)
                     print(f"  - Created conversation {i+1}/10 by {user['full_name']}")
@@ -279,7 +277,7 @@ def cleanup_database():
         db.close()
     
     # Clean tenant databases
-    for tenant in ["tenant1", "tenant2"]:
+    for tenant in ["acme_corp", "tech_startup"]:
         try:
             db_generator = get_tenant_db(tenant)
             db = next(db_generator)
@@ -323,12 +321,12 @@ def main():
     print("\n📝 Creating users...")
     users = create_users()
     
-    print(f"\n✅ Created {len(users['tenant1']) + len(users['tenant2'])} users")
+    print(f"\n✅ Created {len(users['acme_corp']) + len(users['tech_startup'])} users")
     
     print("\n🏢 Creating channels...")
     channels = create_channels(users)
     
-    print(f"\n✅ Created {len(channels['tenant1']) + len(channels['tenant2'])} channels")
+    print(f"\n✅ Created {len(channels['acme_corp']) + len(channels['tech_startup'])} channels")
     
     print("\n💬 Creating conversations...")
     create_conversations(users, channels)
@@ -339,11 +337,11 @@ def main():
     print(f"  • Channels: 4 (2 per tenant)")
     print(f"  • Conversations: 40 (10 per channel)")
     print("\n🔐 Login credentials:")
-    print("  Tenant1 Admin: admin1@company1.com / Admin123!")
-    print("  Tenant1 SuperUser: super1@company1.com / Super123!")
-    print("  Tenant2 Admin: admin2@company2.com / Admin123!")
-    print("  Tenant2 SuperUser: super2@company2.com / Super123!")
-    print("  Regular users: user[1-6]@company[1-2].com / User123!")
+    print("  Acme Corp Admin: admin1@acme.com / Admin123!")
+    print("  Acme Corp SuperUser: super1@acme.com / Super123!")
+    print("  Tech Startup Admin: admin2@techstartup.com / Admin123!")
+    print("  Tech Startup SuperUser: super2@techstartup.com / Super123!")
+    print("  Regular users: user[1-6]@[acme.com|techstartup.com] / User123!")
 
 if __name__ == "__main__":
     main()

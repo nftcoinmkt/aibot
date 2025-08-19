@@ -100,7 +100,7 @@ jobs:
           --min-instances=0 \
           --max-instances=10 \
           --timeout=900 \
-          --startup-cpu-boost
+          --cpu-boost
           
     - name: Get service URL
       run: |
