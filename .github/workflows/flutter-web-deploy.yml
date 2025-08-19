@@ -131,6 +131,7 @@ jobs:
           --platform managed \
           --region $REGION \
           --allow-unauthenticated \
+          --service-account=githubactions@$PROJECT_ID.iam.gserviceaccount.com \
           --port=8080 \
           --memory=512Mi \
           --cpu=1 \
