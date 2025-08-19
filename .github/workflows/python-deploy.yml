@@ -92,6 +92,7 @@ jobs:
           --platform managed \
           --region $REGION \
           --allow-unauthenticated \
+          --port=8080 \
           --set-env-vars="API_V1_STR=/api/v1,AI_PROVIDER=gemini,TENANT_DATABASE_PATH=./tenant_databases/" \
           --update-secrets="SECRET_KEY=SECRET_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest" \
           --memory=1Gi \

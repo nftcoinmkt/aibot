@@ -38,6 +38,10 @@ app.add_middleware(
 def read_root():
     return {"message": "Hello, world!"}
 
+@app.get(f"{settings.API_V1_STR}/health")
+def health_check():
+    return {"status": "healthy", "service": "aibot-backend"}
+
 # --- Authentication Required API ---
 @app.get(f"{settings.API_V1_STR}/welcome", response_model=auth_schemas.Msg)
 def welcome(
