@@ -37,6 +37,13 @@ class FixedTenants:
                 "max_users": 100
             },
             {
+                "id": "hippocampus",
+                "name": "HippoCampus",
+                "description": "Education technology organization",
+                "type": TenantType.EDUCATION,
+                "max_users": 500
+            },
+            {
                 "id": "university",
                 "name": "State University",
                 "description": "Educational institution",

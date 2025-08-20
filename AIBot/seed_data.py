@@ -81,6 +81,14 @@ EMPLOYEES_CONVERSATIONS = [
     ("How do I update my personal information?", "Log into employee self-service portal, update details, submit required documentation, and notify payroll of changes.")
 ]
 
+CUSTOMER_CONVERSATIONS = [
+    ("What are top customer pain points this month?", "Most reports cite onboarding friction and response times >24h. Prioritize guided tours and ticket triage."),
+    ("How do we improve NPS?", "Close the loop on detractor feedback, add proactive check-ins at day 7 and day 30, and simplify cancellation flow with save offers."),
+    ("Best practice for handling refunds?", "Acknowledge promptly, set clear expectations, offer partial credits or alternatives, and document root causes for prevention."),
+    ("Which segments have highest churn risk?", "SMB customers on monthly plans with low feature adoption in first 14 days show the highest risk."),
+    ("How to escalate critical tickets?", "Use P1 playbook: Slack war room, assign incident commander, update customer every 30 minutes until resolution.")
+]
+
 def create_users():
     """Create users for both tenants with specified roles."""
     db = DefaultSessionLocal()
@@ -103,8 +111,18 @@ def create_users():
             {"email": "user5@techstartup.com", "password": "User123!", "full_name": "Iris User", "role": auth_schemas.UserRole.USER, "tenant_name": "tech_startup"},
             {"email": "user6@techstartup.com", "password": "User123!", "full_name": "Jack User", "role": auth_schemas.UserRole.USER, "tenant_name": "tech_startup"},
         ]
-        
-        created_users = {"acme_corp": [], "tech_startup": []}
+        # Tenant 3 users: HippoCampus (1 admin, 1 super user, 5 users)
+        tenant3_users = [
+            {"email": "admin@hippocampus.edu", "password": "Admin123!", "full_name": "Hannah Admin", "role": auth_schemas.UserRole.ADMIN, "tenant_name": "hippocampus"},
+            {"email": "super@hippocampus.edu", "password": "Super123!", "full_name": "Ian SuperUser", "role": auth_schemas.UserRole.SUPER_USER, "tenant_name": "hippocampus"},
+            {"email": "user1@hippocampus.edu", "password": "User123!", "full_name": "Joy User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus"},
+            {"email": "user2@hippocampus.edu", "password": "User123!", "full_name": "Kyle User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus"},
+            {"email": "user3@hippocampus.edu", "password": "User123!", "full_name": "Liam User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus"},
+            {"email": "user4@hippocampus.edu", "password": "User123!", "full_name": "Mia User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus"},
+            {"email": "user5@hippocampus.edu", "password": "User123!", "full_name": "Noah User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus"},
+        ]
+
+        created_users = {"acme_corp": [], "tech_startup": [], "hippocampus": []}
         
         # Create tenant1 users
         for user_data in tenant1_users:
@@ -154,6 +172,29 @@ def create_users():
             created_users["tech_startup"].append(user_dict)
             print(f"Created user: {user.email} ({user.role.value}) for tech_startup")
         
+        # Create tenant3 users (HippoCampus)
+        for user_data in tenant3_users:
+            user_create = auth_schemas.UserCreate(
+                email=user_data["email"],
+                password=user_data["password"],
+                full_name=user_data["full_name"],
+                tenant_name=user_data["tenant_name"]
+            )
+            user = user_management_service.create_user(db, user_create)
+            # Update role
+            user.role = user_data["role"]
+            db.commit()
+            db.refresh(user)
+            user_dict = {
+                "id": user.id,
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role,
+                "tenant_name": user.tenant_name
+            }
+            created_users["hippocampus"].append(user_dict)
+            print(f"Created user: {user.email} ({user.role.value}) for hippocampus")
+
         return created_users
         
     finally:
@@ -161,7 +202,7 @@ def create_users():
 
 def create_channels(users):
     """Create channels for both tenants."""
-    created_channels = {"acme_corp": [], "tech_startup": []}
+    created_channels = {"acme_corp": [], "tech_startup": [], "hippocampus": []}
 
     tenant_channels_map = {
         "acme_corp": [
@@ -171,6 +212,10 @@ def create_channels(users):
         "tech_startup": [
             ("administration", "Administrative processes and procedures"),
             ("employees", "General employee discussions and announcements"),
+        ],
+        "hippocampus": [
+            ("sales", "Sales team discussions and strategies"),
+            ("customer", "Customer support and success discussions"),
         ],
     }
 
@@ -219,6 +264,10 @@ def create_conversations(users, channels):
         "tech_startup": {
             "administration": ADMINISTRATION_CONVERSATIONS,
             "employees": EMPLOYEES_CONVERSATIONS
+        },
+        "hippocampus": {
+            "sales": SALES_CONVERSATIONS,
+            "customer": CUSTOMER_CONVERSATIONS
         }
     }
 
@@ -285,7 +334,7 @@ def cleanup_database():
         db.close()
     
     # Clean tenant databases
-    for tenant in ["acme_corp", "tech_startup"]:
+    for tenant in ["acme_corp", "tech_startup", "hippocampus"]:
         try:
             db_generator = get_tenant_db(tenant)
             db = next(db_generator)
@@ -321,7 +370,7 @@ def initialize_database():
     ensure_tenant_database_directory()
 
     # Reset tenant databases (drop and recreate tables to match current models)
-    for tenant in ["acme_corp", "tech_startup"]:
+    for tenant in ["acme_corp", "tech_startup", "hippocampus"]:
         try:
             engine = get_tenant_engine(tenant)
             # Drop existing tables then recreate with current schema
@@ -344,21 +393,23 @@ def main():
     print("\n📝 Creating users...")
     users = create_users()
     
-    print(f"\n✅ Created {len(users['acme_corp']) + len(users['tech_startup'])} users")
+    total_users = sum(len(u_list) for u_list in users.values())
+    print(f"\n✅ Created {total_users} users")
     
     print("\n🏢 Creating channels...")
     channels = create_channels(users)
     
-    print(f"\n✅ Created {len(channels['acme_corp']) + len(channels['tech_startup'])} channels")
+    total_channels = sum(len(c_list) for c_list in channels.values())
+    print(f"\n✅ Created {total_channels} channels")
     
     print("\n💬 Creating conversations...")
     create_conversations(users, channels)
     
     print("\n🎉 Database seeding completed successfully!")
     print("\n📊 Summary:")
-    print(f"  • Users: 10 (5 per tenant)")
-    print(f"  • Channels: 4 (2 per tenant)")
-    print(f"  • Conversations: 40 (10 per channel)")
+    print(f"  • Users: {total_users}")
+    print(f"  • Channels: {total_channels}")
+    print(f"  • Conversations: 40 (10 per channel for existing templates)")
     print("\n🔐 Login credentials:")
     print("  Acme Corp Admin: admin1@acme.com / Admin123!")
     print("  Acme Corp SuperUser: super1@acme.com / Super123!")

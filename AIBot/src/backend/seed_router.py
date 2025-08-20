@@ -53,10 +53,10 @@ async def seed_database():
         logger.info("Created conversations")
         
         summary = {
-            "users_created": len(users['acme_corp']) + len(users['tech_startup']),
-            "channels_created": len(channels['acme_corp']) + len(channels['tech_startup']),
+            "users_created": sum(len(u) for u in users.values()),
+            "channels_created": sum(len(c) for c in channels.values()),
             "conversations_created": 40,
-            "tenants": ["acme_corp", "tech_startup"],
+            "tenants": ["acme_corp", "tech_startup", "hippocampus"],
             "login_credentials": {
                 "acme_corp_admin": "admin1@acme.com / Admin123!",
                 "acme_corp_super": "super1@acme.com / Super123!",
@@ -146,7 +146,8 @@ async def get_seed_status():
         status = {
             "default_db": {"users": 0},
             "acme_corp": {"channels": 0},
-            "tech_startup": {"channels": 0}
+            "tech_startup": {"channels": 0},
+            "hippocampus": {"channels": 0},
         }
         
         # Check default database
@@ -158,7 +159,7 @@ async def get_seed_status():
             db.close()
         
         # Check tenant databases
-        for tenant in ["acme_corp", "tech_startup"]:
+        for tenant in ["acme_corp", "tech_startup", "hippocampus"]:
             try:
                 db_generator = get_tenant_db(tenant)
                 db = next(db_generator)
