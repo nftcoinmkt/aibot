@@ -7,7 +7,7 @@ from datetime import datetime
 
 from src.backend.core.settings import settings
 from src.backend.core.security import verify_password
-from src.backend.shared.database_manager import get_default_db
+from src.backend.shared.database_manager import get_master_db
 from .user_management import user_management_service
 from . import models, schemas
 
@@ -21,7 +21,7 @@ class AuthenticationService:
     """Service for handling authentication and authorization."""
 
     def get_current_user(
-        self, db: Session = Depends(get_default_db), token: str = Depends(reusable_oauth2)
+        self, db: Session = Depends(get_master_db), token: str = Depends(reusable_oauth2)
     ) -> models.User:
         """Get current user from JWT token."""
         try:
@@ -94,9 +94,9 @@ class AuthenticationService:
             if not email:
                 return None
             
-            # Get database session
-            from src.backend.shared.database_manager import DefaultSessionLocal
-            db = DefaultSessionLocal()
+            # Get database session (master)
+            from src.backend.shared.database_manager import MasterSessionLocal
+            db = MasterSessionLocal()
             try:
                 user = user_management_service.get_user_by_email(db=db, email=email)
                 if not user or not user.is_active:
@@ -115,7 +115,7 @@ authentication_service = AuthenticationService()
 
 # Dependency functions for FastAPI
 def get_current_user(
-    db: Session = Depends(get_default_db),
+    db: Session = Depends(get_master_db),
     token: str = Depends(reusable_oauth2)
 ) -> models.User:
     return authentication_service.get_current_user(db, token)

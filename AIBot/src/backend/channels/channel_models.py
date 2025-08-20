@@ -2,13 +2,13 @@ from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
-from src.backend.shared.database_manager import Base
+from src.backend.shared.database_manager import TenantBase
 
 
 # Association table for many-to-many relationship between channels and users
 channel_members = Table(
     'channel_members',
-    Base.metadata,
+    TenantBase.metadata,
     Column('channel_id', Integer, ForeignKey('channels.id'), primary_key=True),
     Column('user_id', Integer, primary_key=True),  # Reference to user in main DB
     Column('joined_at', DateTime, default=datetime.utcnow),
@@ -17,7 +17,7 @@ channel_members = Table(
 )
 
 
-class Channel(Base):
+class Channel(TenantBase):
     __tablename__ = "channels"
     __table_args__ = {'extend_existing': True}
 
@@ -37,7 +37,7 @@ class Channel(Base):
     messages = relationship("ChannelMessage", back_populates="channel", cascade="all, delete-orphan")
 
 
-class ChannelMessage(Base):
+class ChannelMessage(TenantBase):
     __tablename__ = "channel_messages"
     __table_args__ = {'extend_existing': True}
 

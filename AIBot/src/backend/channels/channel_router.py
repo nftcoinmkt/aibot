@@ -7,7 +7,7 @@ from pathlib import Path
 
 from src.backend.auth.schemas import User
 from src.backend.auth.authentication_service import get_current_active_user, get_current_active_superuser
-from src.backend.shared.database_manager import get_default_db, get_tenant_db
+from src.backend.shared.database_manager import get_tenant_db
 from src.backend.channels.channel_service import channel_service
 from src.backend.ai_service.chat_service import chat_service
 from src.backend.channels.channel_schemas import (
@@ -21,155 +21,192 @@ router = APIRouter()
 @router.post("/channels", response_model=Channel)
 def create_channel(
     channel_data: ChannelCreate,
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_superuser)
 ):
     """
     Create a new chat channel (admin/superuser only).
     """
-    channel = channel_service.create_channel(
-        db, 
-        channel_data, 
-        current_user.id
-    )
-    return channel
+    # Use tenant-specific database
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+    try:
+        channel = channel_service.create_channel(
+            db, 
+            channel_data, 
+            current_user.id
+        )
+        return channel
+    finally:
+        db.close()
 
 @router.get("/channels", response_model=List[ChannelWithMembers])
 def get_channels(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get list of channels accessible to current user.
     """
-    channels = channel_service.get_channels(
-        db,
-        current_user.id,
-        current_user.role.value,
-        skip=skip,
-        limit=limit
-    )
-    return channels
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+    try:
+        channels = channel_service.get_channels(
+            db,
+            current_user.id,
+            current_user.role.value,
+            skip=skip,
+            limit=limit
+        )
+        return channels
+    finally:
+        db.close()
 
 @router.get("/channels/{channel_id}", response_model=Channel)
 def get_channel(
     channel_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get a specific channel.
     """
-    channel = channel_service.get_channel(db, channel_id)
-    if not channel:
-        raise HTTPException(status_code=404, detail="Channel not found")
-    return channel
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+    try:
+        channel = channel_service.get_channel(db, channel_id)
+        if not channel:
+            raise HTTPException(status_code=404, detail="Channel not found")
+        return channel
+    finally:
+        db.close()
 
 @router.put("/channels/{channel_id}", response_model=Channel)
 def update_channel(
     channel_id: int,
-channel_data: ChannelUpdate,
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_default_db)
+    channel_data: ChannelUpdate,
+    current_user: User = Depends(get_current_active_superuser)
 ):
     """
     Update a channel (admin/superuser only).
     """
-    channel = channel_service.update_channel(
-        db, 
-        channel_id, 
-        channel_data
-    )
-    if not channel:
-        raise HTTPException(status_code=404, detail="Channel not found")
-    return channel
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+    try:
+        channel = channel_service.update_channel(
+            db, 
+            channel_id, 
+            channel_data
+        )
+        if not channel:
+            raise HTTPException(status_code=404, detail="Channel not found")
+        return channel
+    finally:
+        db.close()
 
 @router.delete("/channels/{channel_id}")
 def delete_channel(
     channel_id: int,
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_superuser)
 ):
     """
     Delete a channel (admin/superuser only).
     """
-    success = channel_service.delete_channel(db, channel_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Channel not found")
-    return {"message": "Channel deleted successfully"}
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+    try:
+        success = channel_service.delete_channel(db, channel_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Channel not found")
+        return {"message": "Channel deleted successfully"}
+    finally:
+        db.close()
 
 @router.post("/channels/{channel_id}/members")
 def add_channel_member(
     channel_id: int,
     member_data: ChannelMemberAdd,
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_superuser)
 ):
     """
     Add a member to a channel (admin/superuser only).
     """
-    success = channel_service.add_member(
-        db,
-        channel_id,
-        member_data.user_id,
-        member_data.role.value
-    )
-    if not success:
-        raise HTTPException(
-            status_code=400, 
-            detail="User is already a member or channel not found"
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+    try:
+        success = channel_service.add_member(
+            db,
+            channel_id,
+            member_data.user_id,
+            member_data.role.value
         )
-    return {"message": "Member added successfully"}
+        if not success:
+            raise HTTPException(
+                status_code=400, 
+                detail="User is already a member or channel not found"
+            )
+        return {"message": "Member added successfully"}
+    finally:
+        db.close()
 
 @router.get("/channels/{channel_id}/members", response_model=List[ChannelMember])
 def get_channel_members(
     channel_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get all members of a channel (admin/superuser only).
     """
-    members = channel_service.get_channel_members(db, channel_id)
-    return members
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+    try:
+        members = channel_service.get_channel_members(db, channel_id)
+        return members
+    finally:
+        db.close()
 
 @router.put("/channels/{channel_id}/members/{user_id}")
 def update_member_role(
     channel_id: int,
     user_id: int,
     member_data: ChannelMemberUpdate,
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_superuser)
 ):
     """
     Update a member's role in a channel (admin/superuser only).
     """
-    success = channel_service.update_member_role(
-        db,
-        channel_id,
-        user_id,
-        member_data.role.value
-    )
-    if not success:
-        raise HTTPException(status_code=404, detail="Member not found in channel")
-    return {"message": "Member role updated successfully"}
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+    try:
+        success = channel_service.update_member_role(
+            db,
+            channel_id,
+            user_id,
+            member_data.role.value
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail="Member not found in channel")
+        return {"message": "Member role updated successfully"}
+    finally:
+        db.close()
 
 @router.delete("/channels/{channel_id}/members/{user_id}")
 def remove_channel_member(
     channel_id: int,
     user_id: int,
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_superuser)
 ):
     """
     Remove a member from a channel (admin/superuser only).
     """
-    success = channel_service.remove_member(db, channel_id, user_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Member not found in channel")
-    return {"message": "Member removed successfully"}
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+    try:
+        success = channel_service.remove_member(db, channel_id, user_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Member not found in channel")
+        return {"message": "Member removed successfully"}
+    finally:
+        db.close()
 
 @router.get("/channels/{channel_id}/messages", response_model=List[ChannelMessage])
 def get_channel_messages(
@@ -245,8 +282,7 @@ def archive_old_messages(
 async def upload_file_to_channel(
     channel_id: int,
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Upload a file to a channel and trigger AI analysis.
@@ -298,15 +334,20 @@ async def upload_file_to_channel(
         return {"messages": messages}
     except Exception as e:
         # If AI analysis fails, still save the file message
-        message = channel_service.create_file_message(
-            db=db,
-            channel_id=channel_id,
-            user_id=current_user.id,
-            message=message_text,
-            file_url=file_url,
-            file_name=file.filename,
-            file_size=len(content)
-        )
+        db_generator = get_tenant_db(current_user.tenant_name)
+        db = next(db_generator)
+        try:
+            message = channel_service.create_file_message(
+                db=db,
+                channel_id=channel_id,
+                user_id=current_user.id,
+                message=message_text,
+                file_url=file_url,
+                file_name=file.filename,
+                file_size=len(content)
+            )
+        finally:
+            db.close()
 
         return {
             "messages": [{
@@ -323,11 +364,15 @@ async def upload_file_to_channel(
 
 @router.get("/channels/stats", response_model=ChannelStats)
 def get_channel_stats(
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_default_db)
+    current_user: User = Depends(get_current_active_superuser)
 ):
     """
     Get channel statistics (admin/superuser only).
     """
-    stats = channel_service.get_channel_stats(db)
-    return stats
+    db_generator = get_tenant_db(current_user.tenant_name)
+    db = next(db_generator)
+    try:
+        stats = channel_service.get_channel_stats(db)
+        return stats
+    finally:
+        db.close()

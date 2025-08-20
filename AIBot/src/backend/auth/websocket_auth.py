@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from src.backend.core.settings import settings
-from src.backend.shared.database_manager import get_default_db
+from src.backend.shared.database_manager import get_master_db
 from .models import User
 from .schemas import TokenData
 
@@ -38,8 +38,8 @@ async def get_current_user_from_token(token: str) -> User:
         print(f"❌ JWT decode error: {e}")
         raise credentials_exception
     
-    # Get user from database
-    db_generator = get_default_db()
+    # Get user from master database
+    db_generator = get_master_db()
     db = next(db_generator)
     
     try:

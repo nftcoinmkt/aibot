@@ -4,11 +4,11 @@ from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from sqlalchemy import event
 
-from src.backend.shared.database_manager import Base
+from src.backend.shared.database_manager import MasterBase
 from .schemas import UserRole
 
 
-class Tenant(Base):
+class Tenant(MasterBase):
     __tablename__ = "tenants"
     __table_args__ = {'extend_existing': True}
 
@@ -28,7 +28,7 @@ def _tenant_set_database_name(mapper, connection, target):
         target.database_name = target.name
 
 
-class User(Base):
+class User(MasterBase):
     __tablename__ = "users"
     __table_args__ = {'extend_existing': True}
 

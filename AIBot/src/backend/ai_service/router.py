@@ -5,7 +5,7 @@ from datetime import datetime
 
 from src.backend.auth.schemas import User
 from src.backend.auth.authentication_service import get_current_active_user, get_user_from_token
-from src.backend.shared.database_manager import get_default_db
+from src.backend.shared.database_manager import get_master_db
 from src.backend.core.settings import settings
 from .chat_service import chat_service
 from . import schemas
@@ -16,7 +16,7 @@ router = APIRouter()
 def chat_with_ai(
     request: schemas.ChatRequest,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_default_db)
+    db: Session = Depends(get_master_db)
 ):
     """
     Chat with the AI service.
@@ -31,7 +31,7 @@ async def chat_in_channel(
     channel_id: int,
     request: schemas.ChatRequest,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_default_db)
+    db: Session = Depends(get_master_db)
 ):
     """
     Chat with AI in a specific channel. Returns both user message and AI response.
@@ -50,7 +50,7 @@ def get_chat_history(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_default_db)
+    db: Session = Depends(get_master_db)
 ):
     """
     Get chat history for the current user.
@@ -63,7 +63,7 @@ def get_chat_history(
 @router.get("/chat/stats", response_model=dict)
 def get_chat_stats(
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_default_db)
+    db: Session = Depends(get_master_db)
 ):
     """
     Get chat statistics for the current tenant.

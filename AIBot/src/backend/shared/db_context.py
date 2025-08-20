@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from typing import Generator
 from sqlalchemy.orm import Session
 
-from .database_manager import get_tenant_db, get_default_db
+from .database_manager import get_tenant_db, get_master_db, get_default_db
 
 
 @contextmanager
@@ -35,7 +35,13 @@ def get_default_db_context() -> Generator[Session, None, None]:
             # perform database operations
             pass
     """
-    db_generator = get_default_db()
+    yield from get_master_db_context()
+
+
+@contextmanager
+def get_master_db_context() -> Generator[Session, None, None]:
+    """Context manager for master database sessions."""
+    db_generator = get_master_db()
     db = next(db_generator)
     try:
         yield db

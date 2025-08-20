@@ -1,10 +1,10 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text
 from datetime import datetime, timezone
 
-from src.backend.shared.database_manager import Base
+from src.backend.shared.database_manager import TenantBase
 
 
-class ChatMessage(Base):
+class ChatMessage(TenantBase):
     __tablename__ = "chat_messages"
     __table_args__ = {'extend_existing': True}
 

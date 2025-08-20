@@ -8,6 +8,14 @@ import sqlite3
 import os
 from pathlib import Path
 
+try:
+    # Prefer configured settings
+    from src.backend.core.settings import settings
+    TENANT_DB_DIR = Path(settings.TENANT_DATABASE_PATH)
+except Exception:
+    # Fallback to default relative path
+    TENANT_DB_DIR = Path("tenant_databases")
+
 def migrate_database(db_path):
     """Add file attachment fields to channel_messages table."""
     print(f"Migrating database: {db_path}")
@@ -40,6 +48,11 @@ def migrate_database(db_path):
             cursor.execute("ALTER TABLE channel_messages ADD COLUMN is_archived BOOLEAN DEFAULT 0")
             print("  Added is_archived column")
 
+        # Add message_length column if it doesn't exist
+        if 'message_length' not in columns:
+            cursor.execute("ALTER TABLE channel_messages ADD COLUMN message_length INTEGER")
+            print("  Added message_length column")
+
         # Check and update channels table
         cursor.execute("PRAGMA table_info(channels)")
         channel_columns = [column[1] for column in cursor.fetchall()]
@@ -69,20 +82,16 @@ def migrate_database(db_path):
         conn.close()
 
 def main():
-    """Run migration on all tenant databases."""
-    print("Starting database migration to add file attachment fields...")
-    
-    # Migrate main database
-    main_db = "app.db"
-    if os.path.exists(main_db):
-        migrate_database(main_db)
-    
-    # Migrate tenant databases
-    tenant_db_dir = Path("tenant_databases")
-    if tenant_db_dir.exists():
-        for db_file in tenant_db_dir.glob("*.db"):
+    """Run migration on all tenant databases only."""
+    print("Starting tenant database migration to add file attachment fields...")
+
+    # Migrate tenant databases only
+    if TENANT_DB_DIR.exists():
+        for db_file in TENANT_DB_DIR.glob("*.db"):
             migrate_database(str(db_file))
-    
+    else:
+        print(f"Tenant database directory not found: {TENANT_DB_DIR}")
+
     print("Migration completed!")
 
 if __name__ == "__main__":

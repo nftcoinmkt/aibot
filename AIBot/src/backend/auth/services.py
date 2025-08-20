@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.backend.core.settings import settings
 from src.backend.core.security import get_password_hash, verify_password, create_access_token
-from src.backend.shared.database_manager import get_default_db
+from src.backend.shared.database_manager import get_master_db
 from src.backend.shared.email_service import send_password_reset_email
 from . import models, schemas
 import secrets
@@ -64,7 +64,7 @@ def authenticate(*, db: Session, email: str, password: str) -> models.User | Non
     return user
 
 def get_current_user(
-    db: Session = Depends(get_default_db), token: str = Depends(reusable_oauth2)
+    db: Session = Depends(get_master_db), token: str = Depends(reusable_oauth2)
 ) -> models.User:
     try:
         payload = jwt.decode(

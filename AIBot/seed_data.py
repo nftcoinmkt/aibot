@@ -9,7 +9,15 @@ from datetime import datetime, timedelta, timezone
 import random
 from sqlalchemy.orm import Session
 
-from src.backend.shared.database_manager import DefaultSessionLocal, get_tenant_db, Base, default_engine, get_tenant_engine, ensure_tenant_database_directory
+from src.backend.shared.database_manager import (
+    DefaultSessionLocal,
+    get_tenant_db,
+    Base,
+    default_engine,
+    get_tenant_engine,
+    ensure_tenant_database_directory,
+    TenantBase,
+)
 from src.backend.auth.user_management import user_management_service
 from src.backend.auth import schemas as auth_schemas, models as auth_models
 from src.backend.channels.channel_service import channel_service
@@ -305,6 +313,7 @@ def initialize_database():
     print("🗄️ Initializing database tables...")
     
     # Create all tables in the default database
+    # Base is an alias to MasterBase for backward-compat
     Base.metadata.create_all(bind=default_engine)
     print("✅ Default database tables created")
 
@@ -316,8 +325,8 @@ def initialize_database():
         try:
             engine = get_tenant_engine(tenant)
             # Drop existing tables then recreate with current schema
-            Base.metadata.drop_all(bind=engine)
-            Base.metadata.create_all(bind=engine)
+            TenantBase.metadata.drop_all(bind=engine)
+            TenantBase.metadata.create_all(bind=engine)
             print(f"✅ {tenant} database tables reset")
         except Exception as e:
             print(f"⚠️ Error initializing {tenant} database: {e}")
