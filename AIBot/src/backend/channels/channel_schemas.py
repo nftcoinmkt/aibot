@@ -53,6 +53,8 @@ class ChannelMember(BaseModel):
     user_id: int
     role: ChannelRole
     joined_at: datetime
+    user_full_name: Optional[str] = None
+    user_email: Optional[str] = None
 
 
 class ChannelMemberAdd(BaseModel):

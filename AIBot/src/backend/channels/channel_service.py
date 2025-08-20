@@ -3,7 +3,7 @@ from sqlalchemy import and_, func
 from typing import List, Optional, Tuple
 from datetime import datetime, timedelta
 
-from src.backend.shared.database_manager import get_tenant_db
+from src.backend.shared.database_manager import get_tenant_db, get_master_db
 from src.backend.channels.channel_models import Channel, ChannelMessage, channel_members
 from src.backend.channels.channel_schemas import (
     ChannelCreate, ChannelUpdate, ChannelWithMembers, 
@@ -11,6 +11,7 @@ from src.backend.channels.channel_schemas import (
     ChannelMessage as ChannelMessageSchema, ChannelStats, MessageType, ChannelRole
 )
 from src.backend.auth.schemas import UserRole
+from src.backend.auth.models import User as MasterUser
 
 
 class ChannelService:
@@ -177,13 +178,30 @@ class ChannelService:
         members = db.execute(
             channel_members.select().where(channel_members.c.channel_id == channel_id)
         ).fetchall()
+        # Lookup user details from master DB for display names
+        master_db_gen = get_master_db()
+        master_db = next(master_db_gen)
+        try:
+            user_ids = [m.user_id for m in members]
+            users = (
+                master_db.query(MasterUser)
+                .filter(MasterUser.id.in_(user_ids))
+                .all()
+            ) if user_ids else []
+            user_map = {u.id: u for u in users}
 
-        return [
-            ChannelMember(
-                user_id=member.user_id, role=member.role, joined_at=member.joined_at
-            )
-            for member in members
-        ]
+            return [
+                ChannelMember(
+                    user_id=member.user_id,
+                    role=member.role,
+                    joined_at=member.joined_at,
+                    user_full_name=(user_map.get(member.user_id).full_name if user_map.get(member.user_id) else None),
+                    user_email=(user_map.get(member.user_id).email if user_map.get(member.user_id) else None),
+                )
+                for member in members
+            ]
+        finally:
+            master_db.close()
 
     def update_member_role(
         self, db: Session, channel_id: int, user_id: int, new_role: str
