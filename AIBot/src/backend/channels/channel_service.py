@@ -4,8 +4,12 @@ from typing import List, Optional, Tuple
 from datetime import datetime, timedelta
 
 from src.backend.shared.database_manager import get_tenant_db
-from .channel_models import Channel, ChannelMessage, channel_members
-from . import channel_schemas
+from src.backend.channels.channel_models import Channel, ChannelMessage, channel_members
+from src.backend.channels.channel_schemas import (
+    ChannelCreate, ChannelUpdate, ChannelWithMembers, 
+    ChannelMember, ChannelMemberAdd, ChannelMemberUpdate,
+    ChannelMessage as ChannelMessageSchema, ChannelStats, MessageType, ChannelRole
+)
 from src.backend.auth.schemas import UserRole
 
 
@@ -13,7 +17,7 @@ class ChannelService:
     """Service for managing chat channels."""
 
     def create_channel(
-        self, db: Session, channel_data: channel_schemas.ChannelCreate, created_by: int
+        self, db: Session, channel_data: ChannelCreate, created_by: int
     ) -> Channel:
         """Create a new channel."""
         channel = Channel(
@@ -39,7 +43,7 @@ class ChannelService:
         user_role: str,
         skip: int = 0,
         limit: int = 50,
-    ) -> List[channel_schemas.ChannelWithMembers]:
+    ) -> List[ChannelWithMembers]:
         """Get channels accessible to user."""
         query = db.query(Channel).filter(Channel.is_active == True)
 
@@ -79,7 +83,7 @@ class ChannelService:
                 .scalar()
             )
 
-            channel_with_members = channel_schemas.ChannelWithMembers(
+            channel_with_members = ChannelWithMembers(
                 **channel.__dict__,
                 member_count=member_count,
                 user_role=user_role_in_channel
@@ -93,7 +97,7 @@ class ChannelService:
         return db.query(Channel).filter(Channel.id == channel_id).first()
 
     def update_channel(
-        self, db: Session, channel_id: int, channel_data: channel_schemas.ChannelUpdate
+        self, db: Session, channel_id: int, channel_data: ChannelUpdate
     ) -> Optional[Channel]:
         """Update a channel."""
         channel = db.query(Channel).filter(Channel.id == channel_id).first()
@@ -168,14 +172,14 @@ class ChannelService:
 
     def get_channel_members(
         self, db: Session, channel_id: int
-    ) -> List[channel_schemas.ChannelMember]:
+    ) -> List[ChannelMember]:
         """Get all members of a channel."""
         members = db.execute(
             channel_members.select().where(channel_members.c.channel_id == channel_id)
         ).fetchall()
 
         return [
-            channel_schemas.ChannelMember(
+            ChannelMember(
                 user_id=member.user_id, role=member.role, joined_at=member.joined_at
             )
             for member in members
@@ -200,7 +204,7 @@ class ChannelService:
 
     def get_channel_messages(
         self, db: Session, channel_id: int, skip: int = 0, limit: int = 50, days_back: int = 2
-    ) -> List[channel_schemas.ChannelMessage]:
+    ) -> List[ChannelMessageSchema]:
         """Get recent messages from a specific channel (default: last 2 days)."""
         # Calculate the cutoff date
         cutoff_date = datetime.utcnow() - timedelta(days=days_back)
@@ -221,7 +225,7 @@ class ChannelService:
         )
 
         return [
-            channel_schemas.ChannelMessage(
+            ChannelMessageSchema(
                 id=msg.id,
                 channel_id=msg.channel_id,
                 user_id=msg.user_id,
@@ -236,7 +240,7 @@ class ChannelService:
 
     def get_all_channel_messages(
         self, db: Session, channel_id: int, skip: int = 0, limit: int = 50
-    ) -> List[channel_schemas.ChannelMessage]:
+    ) -> List[ChannelMessage]:
         """Get all messages from a specific channel (including archived)."""
         messages = (
             db.query(ChannelMessage)
@@ -248,7 +252,7 @@ class ChannelService:
         )
 
         return [
-            channel_schemas.ChannelMessage(
+            ChannelMessage(
                 id=msg.id,
                 channel_id=msg.channel_id,
                 user_id=msg.user_id,
@@ -311,7 +315,7 @@ class ChannelService:
         db.refresh(channel_message)
         return channel_message
 
-    def get_channel_stats(self, db: Session) -> channel_schemas.ChannelStats:
+    def get_channel_stats(self, db: Session) -> ChannelStats:
         """Get channel statistics for a tenant."""
         total_channels = db.query(Channel).count()
         active_channels = db.query(Channel).filter(Channel.is_active == True).count()
@@ -330,7 +334,7 @@ class ChannelService:
             str(creator.created_by): creator.count for creator in creators
         }
 
-        return channel_schemas.ChannelStats(
+        return ChannelStats(
             total_channels=total_channels,
             active_channels=active_channels,
             private_channels=private_channels,

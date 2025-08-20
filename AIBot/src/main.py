@@ -19,7 +19,6 @@ from src.backend.shared.database_manager import default_engine, Base
 # Create default database tables with error handling
 try:
     # Ensure database directory exists
-    import os
     from pathlib import Path
     db_path = Path("app.db").parent
     db_path.mkdir(parents=True, exist_ok=True)
@@ -114,8 +113,8 @@ app.include_router(auth_router.router, prefix=settings.API_V1_STR, tags=["auth"]
 app.include_router(ai_router.router, prefix=settings.API_V1_STR, tags=["ai_service"])
 
 # Import and include channel router
-from src.backend.channels import router as channels_router
-app.include_router(channels_router.router, prefix=settings.API_V1_STR, tags=["channels"])
+from src.backend.channels import  channel_models, channel_router
+app.include_router(channel_router.router, prefix=settings.API_V1_STR, tags=["channels"])
 
 # Import and include WebSocket router
 from src.backend.websocket import router as websocket_router
@@ -132,8 +131,6 @@ except Exception as e:
 # Mount static files for uploads
 uploads_dir = "uploads"
 try:
-    if not os.path.exists(uploads_dir):
-        os.makedirs(uploads_dir)
     app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
     print(f"✅ Mounted static files: {uploads_dir}")
 except Exception as e:

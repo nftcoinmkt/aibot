@@ -1,5 +1,6 @@
 from typing import Dict, List
 from fastapi import WebSocket
+from fastapi.encoders import jsonable_encoder
 import json
 import asyncio
 from datetime import datetime, timezone
@@ -88,7 +89,7 @@ class ConnectionManager:
     async def send_personal_message(self, websocket: WebSocket, message: dict):
         """Send a message to a specific WebSocket connection."""
         try:
-            await websocket.send_text(json.dumps(message))
+            await websocket.send_text(json.dumps(jsonable_encoder(message)))
         except:
             # Connection might be closed
             await self.disconnect(websocket)
@@ -104,7 +105,7 @@ class ConnectionManager:
                 continue
             
             try:
-                await connection.send_text(json.dumps(message))
+                await connection.send_text(json.dumps(jsonable_encoder(message)))
             except:
                 # Connection is closed, mark for removal
                 connections_to_remove.append(connection)
@@ -147,7 +148,7 @@ class ConnectionManager:
                     continue
 
             try:
-                await connection.send_text(json.dumps(message))
+                await connection.send_text(json.dumps(jsonable_encoder(message)))
                 broadcast_count += 1
                 print(f"Broadcasted to user {self.connection_users.get(connection, {}).get('user_id', 'unknown')}")
             except Exception as e:

@@ -30,6 +30,7 @@ class Channel(Base):
     
     # Channel settings
     is_private = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
     max_members = Column(Integer, default=100)
     
     # Relationships

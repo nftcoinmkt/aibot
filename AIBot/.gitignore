@@ -172,10 +172,10 @@ cython_debug/
 .env.staging
 
 # Database files
-*.db
+#*.db
 *.sqlite
 *.sqlite3
-app.db
+#app.db
 test.db
 
 # Log files
@@ -215,7 +215,7 @@ config/secrets.py
 api_keys.py
 
 # Tenant databases (project specific)
-tenant_databases/
+#tenant_databases/
 
 # FastAPI/Uvicorn specific
 .uvicorn/

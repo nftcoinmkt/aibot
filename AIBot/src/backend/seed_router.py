@@ -141,7 +141,7 @@ async def get_seed_status():
     try:
         from src.backend.shared.database_manager import DefaultSessionLocal, get_tenant_db
         from src.backend.auth import models as auth_models
-        from src.backend.ai_service.channel_models import Channel
+        from src.backend.channels.channel_models import Channel
         
         status = {
             "default_db": {"users": 0},

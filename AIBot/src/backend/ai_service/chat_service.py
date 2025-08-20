@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from src.backend.core.settings import settings
 from src.backend.shared.database_manager import get_tenant_db
 from .models import ChatMessage
-from src.backend.channels.models import ChannelMessage
+from src.backend.channels.channel_models import ChannelMessage
 from .ai_providers import GroqProvider, GeminiProvider
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -404,6 +404,17 @@ class ChatService:
                     "attachment": None
                 }
             ]
+
+            # Broadcast messages to WebSocket connections if manager is available
+            # Exclude the sender to avoid duplicates (sender gets messages from API response)
+            if manager:
+                print(f"Broadcasting {len(messages)} uploaded-file messages to channel {channel_id} via WebSocket")
+                for message_dict in messages:
+                    preview = message_dict['message'][:50] if isinstance(message_dict.get('message'), str) else ''
+                    print(f"Broadcasting message: {message_dict['id']} - {preview}...")
+                    await manager.broadcast_new_message_exclude_user(channel_id, message_dict, user_id)
+            else:
+                print("WebSocket manager not available for broadcasting uploaded messages")
 
             return messages
         finally:

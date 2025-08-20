@@ -6,17 +6,21 @@ import uuid
 from pathlib import Path
 
 from src.backend.auth.schemas import User
-from src.backend.auth.authentication_service import get_current_active_user, get_current_active_superuser, get_current_active_superuser
+from src.backend.auth.authentication_service import get_current_active_user, get_current_active_superuser
 from src.backend.shared.database_manager import get_default_db, get_tenant_db
-from src.backend.channels.service import channel_service
-from .chat_service import chat_service
-from src.backend.channels import schemas as channel_schemas
+from src.backend.channels.channel_service import channel_service
+from src.backend.ai_service.chat_service import chat_service
+from src.backend.channels.channel_schemas import (
+    Channel, ChannelCreate, ChannelUpdate, ChannelWithMembers, 
+    ChannelMember, ChannelMemberAdd, ChannelMemberUpdate,
+    ChannelMessage, ChannelStats, MessageType, ChannelRole
+)
 
 router = APIRouter()
 
-@router.post("/channels", response_model=channel_schemas.Channel)
+@router.post("/channels", response_model=Channel)
 def create_channel(
-    channel_data: channel_schemas.ChannelCreate,
+    channel_data: ChannelCreate,
     current_user: User = Depends(get_current_active_superuser),
     db: Session = Depends(get_default_db)
 ):
@@ -30,7 +34,7 @@ def create_channel(
     )
     return channel
 
-@router.get("/channels", response_model=List[channel_schemas.ChannelWithMembers])
+@router.get("/channels", response_model=List[ChannelWithMembers])
 def get_channels(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -49,7 +53,7 @@ def get_channels(
     )
     return channels
 
-@router.get("/channels/{channel_id}", response_model=channel_schemas.Channel)
+@router.get("/channels/{channel_id}", response_model=Channel)
 def get_channel(
     channel_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -63,10 +67,10 @@ def get_channel(
         raise HTTPException(status_code=404, detail="Channel not found")
     return channel
 
-@router.put("/channels/{channel_id}", response_model=channel_schemas.Channel)
+@router.put("/channels/{channel_id}", response_model=Channel)
 def update_channel(
     channel_id: int,
-    channel_data: channel_schemas.ChannelUpdate,
+channel_data: ChannelUpdate,
     current_user: User = Depends(get_current_active_superuser),
     db: Session = Depends(get_default_db)
 ):
@@ -99,7 +103,7 @@ def delete_channel(
 @router.post("/channels/{channel_id}/members")
 def add_channel_member(
     channel_id: int,
-    member_data: channel_schemas.ChannelMemberAdd,
+    member_data: ChannelMemberAdd,
     current_user: User = Depends(get_current_active_superuser),
     db: Session = Depends(get_default_db)
 ):
@@ -119,7 +123,7 @@ def add_channel_member(
         )
     return {"message": "Member added successfully"}
 
-@router.get("/channels/{channel_id}/members", response_model=List[channel_schemas.ChannelMember])
+@router.get("/channels/{channel_id}/members", response_model=List[ChannelMember])
 def get_channel_members(
     channel_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -135,7 +139,7 @@ def get_channel_members(
 def update_member_role(
     channel_id: int,
     user_id: int,
-    member_data: channel_schemas.ChannelMemberUpdate,
+    member_data: ChannelMemberUpdate,
     current_user: User = Depends(get_current_active_superuser),
     db: Session = Depends(get_default_db)
 ):
@@ -167,7 +171,7 @@ def remove_channel_member(
         raise HTTPException(status_code=404, detail="Member not found in channel")
     return {"message": "Member removed successfully"}
 
-@router.get("/channels/{channel_id}/messages", response_model=List[channel_schemas.ChannelMessage])
+@router.get("/channels/{channel_id}/messages", response_model=List[ChannelMessage])
 def get_channel_messages(
     channel_id: int,
     skip: int = Query(0, ge=0),
@@ -194,7 +198,7 @@ def get_channel_messages(
     finally:
         db.close()
 
-@router.get("/channels/{channel_id}/messages/all", response_model=List[channel_schemas.ChannelMessage])
+@router.get("/channels/{channel_id}/messages/all", response_model=List[ChannelMessage])
 def get_all_channel_messages(
     channel_id: int,
     skip: int = Query(0, ge=0),
@@ -280,7 +284,7 @@ async def upload_file_to_channel(
 
     # Process the file upload and get AI analysis
     try:
-        messages = chat_service.process_file_upload(
+        messages = await chat_service.process_file_upload(
             user_id=current_user.id,
             tenant_name=current_user.tenant_name,
             channel_id=channel_id,
@@ -317,7 +321,7 @@ async def upload_file_to_channel(
             }]
         }
 
-@router.get("/channels/stats", response_model=channel_schemas.ChannelStats)
+@router.get("/channels/stats", response_model=ChannelStats)
 def get_channel_stats(
     current_user: User = Depends(get_current_active_superuser),
     db: Session = Depends(get_default_db)

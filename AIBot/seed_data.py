@@ -9,13 +9,13 @@ from datetime import datetime, timedelta, timezone
 import random
 from sqlalchemy.orm import Session
 
-from src.backend.shared.database_manager import DefaultSessionLocal, get_tenant_db, Base, default_engine
+from src.backend.shared.database_manager import DefaultSessionLocal, get_tenant_db, Base, default_engine, get_tenant_engine, ensure_tenant_database_directory
 from src.backend.auth.user_management import user_management_service
 from src.backend.auth import schemas as auth_schemas, models as auth_models
-from src.backend.ai_service.channel_service import channel_service
-from src.backend.ai_service import channel_schemas
+from src.backend.channels.channel_service import channel_service
+from src.backend.channels.channel_schemas import ChannelCreate
 from src.backend.ai_service.chat_service import chat_service
-from src.backend.ai_service.channel_models import ChannelMessage, Channel, channel_members
+from src.backend.channels.channel_models import ChannelMessage, Channel, channel_members
 from src.backend.ai_service.models import ChatMessage
 from src.backend.core.settings import settings
 
@@ -175,7 +175,7 @@ def create_channels(users):
             for name, description in channels_to_create:
                 channel = channel_service.create_channel(
                     db,
-                    channel_schemas.ChannelCreate(
+                    ChannelCreate(
                         name=name, description=description, is_private=False
                     ),
                     admin_user["id"],
@@ -307,6 +307,20 @@ def initialize_database():
     # Create all tables in the default database
     Base.metadata.create_all(bind=default_engine)
     print("✅ Default database tables created")
+
+    # Ensure tenant database directory exists
+    ensure_tenant_database_directory()
+
+    # Reset tenant databases (drop and recreate tables to match current models)
+    for tenant in ["acme_corp", "tech_startup"]:
+        try:
+            engine = get_tenant_engine(tenant)
+            # Drop existing tables then recreate with current schema
+            Base.metadata.drop_all(bind=engine)
+            Base.metadata.create_all(bind=engine)
+            print(f"✅ {tenant} database tables reset")
+        except Exception as e:
+            print(f"⚠️ Error initializing {tenant} database: {e}")
 
 def main():
     """Main seeding function."""
