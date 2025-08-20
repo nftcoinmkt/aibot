@@ -1058,7 +1058,7 @@ class _ChatViewState extends State<ChatView> {
       context: context,
       builder: (context) => FilePreviewDialog(
         attachment: attachment,
-        baseUrl: 'http://localhost:8000', // TODO: Get from API service
+        apiService: widget.apiService,
       ),
     );
   }

@@ -28,9 +28,24 @@ class ApiService {
     }
   }
 
+  // Returns the origin/base host without the API prefix, e.g. http://localhost:8000
+  String get baseOrigin {
+    // Remove trailing /api/v1 (or variant with/without trailing slash)
+    return _baseUrl.replaceFirst(RegExp(r"/api/v1$"), "");
+  }
+
+  // Resolve a file path (e.g. /uploads/...) to a full URL
+  String resolveFileUrl(String filePath) {
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+    final normalized = filePath.startsWith('/') ? filePath : '/$filePath';
+    return '$baseOrigin$normalized';
+  }
+
   Future<List<Map<String, dynamic>>> getAvailableTenants() async {
     final response = await http.get(
-      Uri.parse('$_baseUrl/auth/tenants'),
+      Uri.parse('$_baseUrl/tenants'),
       headers: {'Content-Type': 'application/json'},
     );
 
@@ -49,7 +64,7 @@ class ApiService {
     String tenantName
   ) async {
     final response = await http.post(
-      Uri.parse('$_baseUrl/auth/signup'),
+      Uri.parse('$_baseUrl/signup'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': email,

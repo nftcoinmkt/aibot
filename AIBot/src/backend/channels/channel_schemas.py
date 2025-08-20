@@ -85,6 +85,10 @@ class ChannelMessage(ChannelMessageBase):
     message_length: Optional[int] = None
     response_length: Optional[int] = None
     processing_time: Optional[str] = None
+    # File attachment metadata
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
+    file_type: Optional[str] = None
 
     class Config:
         from_attributes = True

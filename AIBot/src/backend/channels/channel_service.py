@@ -64,8 +64,8 @@ class ChannelService:
 
         channels = query.offset(skip).limit(limit).all()
 
-        # Get member counts and user roles
-        result = []
+        # Get member counts and user roles, and build Pydantic objects explicitly
+        result: List[ChannelWithMembers] = []
         for channel in channels:
             member_count = (
                 db.query(func.count(channel_members.c.user_id))
@@ -85,9 +85,16 @@ class ChannelService:
             )
 
             channel_with_members = ChannelWithMembers(
-                **channel.__dict__,
+                id=channel.id,
+                name=channel.name,
+                description=channel.description,
+                is_private=channel.is_private,
+                created_by=channel.created_by,
+                is_active=channel.is_active,
+                created_at=channel.created_at,
+                updated_at=channel.updated_at,
                 member_count=member_count,
-                user_role=user_role_in_channel
+                user_role=user_role_in_channel,
             )
             result.append(channel_with_members)
 
@@ -251,14 +258,17 @@ class ChannelService:
                 response=msg.response,
                 provider=msg.provider,
                 message_type=msg.message_type,
-                created_at=msg.created_at
+                created_at=msg.created_at,
+                file_url=msg.file_url,
+                file_name=msg.file_name,
+                file_type=msg.file_type
             )
             for msg in messages
         ]
 
     def get_all_channel_messages(
         self, db: Session, channel_id: int, skip: int = 0, limit: int = 50
-    ) -> List[ChannelMessage]:
+    ) -> List[ChannelMessageSchema]:
         """Get all messages from a specific channel (including archived)."""
         messages = (
             db.query(ChannelMessage)
@@ -270,7 +280,7 @@ class ChannelService:
         )
 
         return [
-            ChannelMessage(
+            ChannelMessageSchema(
                 id=msg.id,
                 channel_id=msg.channel_id,
                 user_id=msg.user_id,
@@ -278,7 +288,10 @@ class ChannelService:
                 response=msg.response,
                 provider=msg.provider,
                 message_type=msg.message_type,
-                created_at=msg.created_at
+                created_at=msg.created_at,
+                file_url=msg.file_url,
+                file_name=msg.file_name,
+                file_type=msg.file_type
             )
             for msg in messages
         ]

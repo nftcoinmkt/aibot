@@ -35,7 +35,17 @@ def create_channel(
             channel_data, 
             current_user.id
         )
-        return channel
+        # Build response schema immediately
+        return Channel(
+            id=channel.id,
+            name=channel.name,
+            description=channel.description,
+            is_private=channel.is_private,
+            created_by=channel.created_by,
+            is_active=channel.is_active,
+            created_at=channel.created_at,
+            updated_at=channel.updated_at,
+        )
     finally:
         db.close()
 
@@ -76,7 +86,20 @@ def get_channel(
         channel = channel_service.get_channel(db, channel_id)
         if not channel:
             raise HTTPException(status_code=404, detail="Channel not found")
-        return channel
+
+        # Build Pydantic schema while the session is still open to avoid
+        # DetachedInstanceError on response serialization
+        channel_schema = Channel(
+            id=channel.id,
+            name=channel.name,
+            description=channel.description,
+            is_private=channel.is_private,
+            created_by=channel.created_by,
+            is_active=channel.is_active,
+            created_at=channel.created_at,
+            updated_at=channel.updated_at,
+        )
+        return channel_schema
     finally:
         db.close()
 
@@ -99,7 +122,16 @@ def update_channel(
         )
         if not channel:
             raise HTTPException(status_code=404, detail="Channel not found")
-        return channel
+        return Channel(
+            id=channel.id,
+            name=channel.name,
+            description=channel.description,
+            is_private=channel.is_private,
+            created_by=channel.created_by,
+            is_active=channel.is_active,
+            created_at=channel.created_at,
+            updated_at=channel.updated_at,
+        )
     finally:
         db.close()
 

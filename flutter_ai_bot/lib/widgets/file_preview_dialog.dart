@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_ai_bot/models/attachment_model.dart';
+import 'package:flutter_ai_bot/network/api_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 
 class FilePreviewDialog extends StatelessWidget {
   final Attachment attachment;
-  final String baseUrl;
+  final ApiService apiService;
 
   const FilePreviewDialog({
     Key? key,
     required this.attachment,
-    required this.baseUrl,
+    required this.apiService,
   }) : super(key: key);
 
   @override
@@ -89,7 +91,7 @@ class FilePreviewDialog extends StatelessWidget {
   }
 
   Widget _buildImagePreview(BuildContext context) {
-    final imageUrl = baseUrl + attachment.fileUrl;
+    final imageUrl = apiService.resolveFileUrl(attachment.fileUrl);
     
     return Container(
       padding: const EdgeInsets.all(16),
@@ -176,13 +178,16 @@ class FilePreviewDialog extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () {
-              // TODO: Implement PDF download/open functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('PDF download functionality coming soon'),
-                ),
-              );
+            onPressed: () async {
+              final pdfUrl = apiService.resolveFileUrl(attachment.fileUrl);
+              final uri = Uri.parse(pdfUrl);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Could not open PDF')),
+                );
+              }
             },
             icon: const Icon(CupertinoIcons.cloud_download),
             label: const Text('Download PDF'),
