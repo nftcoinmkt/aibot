@@ -65,7 +65,10 @@ class WebSocketService {
     }
 
     try {
-      final wsUrl = 'ws://localhost:8000/ws/channels/$channelId?token=$token';
+      // Get the base URL from ApiService and convert to WebSocket URL
+      final apiService = ApiService();
+      final baseOrigin = apiService.baseOrigin;
+      final wsUrl = baseOrigin.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://') + '/ws/channels/$channelId?token=$token';
       print('🌐 Connecting to: $wsUrl');
 
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
