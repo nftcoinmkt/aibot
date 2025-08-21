@@ -1,5 +1,4 @@
-from langgraph.graph import StateGraph, END
-from typing import TypedDict, Tuple, List, AsyncGenerator
+from typing import Tuple, List
 import os
 import asyncio
 from sqlalchemy.orm import Session
@@ -9,8 +8,7 @@ from src.backend.core.settings import settings
 from src.backend.shared.database_manager import get_tenant_db
 from .models import ChatMessage
 from src.backend.channels.channel_models import ChannelMessage
-from .ai_providers import GroqProvider, GeminiProvider
-from tenacity import retry, stop_after_attempt, wait_exponential
+from .chat_agent import ChatAgent
 
 # Import WebSocket manager for real-time updates
 try:
@@ -19,52 +17,12 @@ except ImportError:
     manager = None
 
 
-class GraphState(TypedDict):
-    message: str
-    response: str
-    user_id: int
-    tenant_name: str
-
-
 class ChatService:
     """Service for handling AI chat operations."""
     
     def __init__(self):
-        self.groq_provider = GroqProvider()
-        self.gemini_provider = GeminiProvider()
-        self.workflow = self._create_workflow()
+        self.chat_agent = ChatAgent()
 
-    def _create_workflow(self) -> StateGraph:
-        """Create LangGraph workflow for chat processing."""
-        workflow = StateGraph(GraphState)
-        workflow.add_node("process_message", self._process_message)
-        workflow.set_entry_point("process_message")
-        workflow.add_edge("process_message", END)
-        return workflow.compile()
-
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def _process_message(self, state: GraphState) -> GraphState:
-        """Process chat message using configured AI provider."""
-        message = state['message']
-        
-        try:
-            if settings.AI_PROVIDER == 'groq':
-                response = self.groq_provider.generate_response(message)
-            elif settings.AI_PROVIDER == 'gemini':
-                response = self.gemini_provider.generate_response(message)
-            else:
-                raise ValueError(f"Invalid AI_PROVIDER: {settings.AI_PROVIDER}")
-                
-            return {
-                **state,
-                "response": response
-            }
-        except Exception as e:
-            # Fallback response
-            return {
-                **state,
-                "response": f"I apologize, but I'm having trouble processing your request right now. Error: {str(e)}"
-            }
 
     def save_chat_message(
         self, 
@@ -117,15 +75,8 @@ class ChatService:
         channel_id: int = None
     ) -> Tuple[str, str]:
         """Process chat message and save to history."""
-        inputs = {
-            "message": message,
-            "user_id": user_id,
-            "tenant_name": tenant_name
-        }
-        
-        result = self.workflow.invoke(inputs)
-        response = result['response']
-        provider = settings.AI_PROVIDER
+        response = self.chat_agent.generate_response(message, user_id, tenant_name, channel_id)
+        provider = self.chat_agent.get_current_provider()
         
         # Save to tenant-specific database
         self.save_chat_message(tenant_name, user_id, message, response, provider, channel_id)
@@ -141,15 +92,8 @@ class ChatService:
     ) -> List[dict]:
         """Process channel message and return both user message and AI response as separate objects."""
         # Get AI response
-        inputs = {
-            "message": message,
-            "user_id": user_id,
-            "tenant_name": tenant_name
-        }
-
-        result = self.workflow.invoke(inputs)
-        response = result['response']
-        provider = settings.AI_PROVIDER
+        response = self.chat_agent.generate_response(message, user_id, tenant_name, channel_id)
+        provider = self.chat_agent.get_current_provider()
 
         # Get tenant-specific database session
         db_generator = get_tenant_db(tenant_name)
@@ -299,18 +243,12 @@ class ChatService:
 
             # Get AI analysis of the file
             try:
-                if settings.AI_PROVIDER == 'groq':
-                    ai_response = self.groq_provider.analyze_file(file_path, analysis_prompt)
-                elif settings.AI_PROVIDER == 'gemini':
-                    ai_response = self.gemini_provider.analyze_file(file_path, analysis_prompt)
-                else:
-                    ai_response = "File uploaded successfully, but AI analysis is not available."
-
-                provider = settings.AI_PROVIDER
+                ai_response = self.chat_agent.analyze_file(file_path, analysis_prompt, user_id, tenant_name, channel_id)
+                provider = self.chat_agent.get_current_provider()
             except Exception as e:
                 print(f"AI analysis failed: {str(e)}")
                 ai_response = f"File uploaded successfully! I can see you've shared {file_name}. Unfortunately, I encountered an issue analyzing it: {str(e)}"
-                provider = settings.AI_PROVIDER
+                provider = self.chat_agent.get_current_provider()
 
             # Save AI response
             ai_message = ChannelMessage(
