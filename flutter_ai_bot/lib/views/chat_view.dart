@@ -1192,8 +1192,8 @@ class _ChatViewState extends State<ChatView> {
                 ),
                 child: IconButton(
                   onPressed: (_controller.text.isNotEmpty || _selectedFile != null) ? _sendMessage : null,
-                  icon: Icon(
-                    (_controller.text.isNotEmpty || _selectedFile != null) ? CupertinoIcons.paperplane_fill : CupertinoIcons.mic_fill,
+                  icon: const Icon(
+                    CupertinoIcons.paperplane_fill,
                     color: Colors.white,
                     size: 20,
                   ),
