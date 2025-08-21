@@ -16,6 +16,7 @@ class ApiService {
   late final String _baseUrl;
   String? _userToken;
   int? _userId;
+  String? _currentTenantName;
 
   ApiService() {
     // Environment-based URL configuration
@@ -141,6 +142,12 @@ class ApiService {
 
   // A placeholder for the user's token. In a real app, you'd store and retrieve this securely.
   String? get userToken => _userToken;
+
+  // Store/retrieve the current tenant name for the logged-in user
+  String? get currentTenantName => _currentTenantName;
+  void setCurrentTenantName(String? tenantName) {
+    _currentTenantName = tenantName;
+  }
 
 
 

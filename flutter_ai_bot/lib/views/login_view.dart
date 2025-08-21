@@ -42,6 +42,24 @@ class _LoginViewState extends State<LoginView> {
         await _apiService.setToken(token, userId: userId);
         print('Login successful');
 
+        // Set current tenant as early as possible for faster availability
+        // Prefer the backend-provided tenant name when available
+        final dynamic tn = (result['tenant_name'] ?? result['tenant'] ?? result['tenantName']);
+        if (tn is String && tn.isNotEmpty) {
+          _apiService.setCurrentTenantName(tn);
+        } else {
+          // Fallback: fetch users and infer tenant
+          try {
+            final users = await _apiService.getUsers();
+            if (users.isNotEmpty) {
+              _apiService.setCurrentTenantName(users.first.tenantName);
+            }
+          } catch (e) {
+            // Non-fatal: proceed without tenant set, will be set later in dashboard
+            print('Unable to set tenant at login: $e');
+          }
+        }
+
         Navigator.pushReplacementNamed(context, '/home');
       } catch (e) {
         if (mounted) {

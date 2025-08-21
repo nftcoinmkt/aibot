@@ -4,6 +4,8 @@ import 'package:flutter_ai_bot/network/api_service.dart';
 import 'package:flutter_ai_bot/views/main_navigation.dart';
 import 'package:flutter_ai_bot/views/login_view.dart';
 import 'package:flutter_ai_bot/views/signup_view.dart';
+import 'package:flutter_ai_bot/views/create_channel_view.dart';
+import 'package:flutter_ai_bot/views/invite_member_view.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -103,7 +105,12 @@ class _MyAppState extends State<MyApp> {
         '/forgot-password': (context) => ForgotPasswordView(apiService: apiService),
         '/home': (context) => MainNavigation(apiService: apiService),
         '/channels': (context) => MainNavigation(apiService: apiService, initialIndex: 1),
-        '/create-channel': (context) => MainNavigation(apiService: apiService, initialIndex: 2),
+        '/create-channel': (context) => CreateChannelView(apiService: apiService),
+        '/invite-member': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final tenant = args != null ? (args['tenant'] as String? ?? '') : '';
+          return InviteMemberView(apiService: apiService, fixedTenantName: tenant);
+        },
       },
     );
   }

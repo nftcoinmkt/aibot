@@ -33,6 +33,18 @@ class _DashboardViewState extends State<DashboardView> {
       final channels = await widget.apiService.getChannels();
       final recentChannels = channels.take(3).toList();
 
+      // Load users to determine current tenant and cache it
+      try {
+        final users = await widget.apiService.getUsers();
+        if (users.isNotEmpty) {
+          widget.apiService.setCurrentTenantName(users.first.tenantName);
+          _currentUser = users.first;
+        }
+      } catch (e) {
+        // Non-fatal: continue without tenant
+        print('Unable to load users for tenant detection: $e');
+      }
+
       // Load recent messages from the first channel if available
       List<ChatMessage> recentMessages = [];
       if (recentChannels.isNotEmpty) {
@@ -201,7 +213,18 @@ class _DashboardViewState extends State<DashboardView> {
                 subtitle: 'Add team members',
                 color: const Color(0xFF10B981),
                 onTap: () {
-                  Navigator.pushNamed(context, '/channels');
+                  final tenant = widget.apiService.currentTenantName ?? _currentUser?.tenantName ?? '';
+                  if (tenant.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Your organization context is not available yet. Please try again in a moment.')),
+                    );
+                    return;
+                  }
+                  Navigator.pushNamed(
+                    context,
+                    '/invite-member',
+                    arguments: {'tenant': tenant},
+                  );
                 },
               ),
             ),
