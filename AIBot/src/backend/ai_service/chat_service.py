@@ -262,55 +262,7 @@ class ChatService:
         finally:
             db.close()
 
-    async def stream_chat_response(
-        self, 
-        user_id: int, 
-        tenant_name: str, 
-        message: str,
-        channel_id: int = None
-    ) -> AsyncGenerator[str, None]:
-        """Stream chat response in chunks for WebSocket."""
-        try:
-            # Get AI response
-            if settings.AI_PROVIDER == 'groq':
-                response = self.groq_provider.generate_response(message)
-            elif settings.AI_PROVIDER == 'gemini':
-                response = self.gemini_provider.generate_response(message)
-            else:
-                response = "I apologize, but I'm having trouble processing your request right now."
-            
-            # Stream response word by word
-            words = response.split()
-            streamed_response = ""
-            
-            for i, word in enumerate(words):
-                streamed_response += word + " "
-                yield word + " "
-                # Small delay to simulate streaming
-                await asyncio.sleep(0.1)
-            
-            # Save complete message to database
-            self.save_chat_message(
-                tenant_name, 
-                user_id, 
-                message, 
-                streamed_response.strip(), 
-                settings.AI_PROVIDER, 
-                channel_id
-            )
-            
-        except Exception as e:
-            error_msg = f"Error: {str(e)}"
-            yield error_msg
-            # Save error to database
-            self.save_chat_message(
-                tenant_name, 
-                user_id, 
-                message, 
-                error_msg, 
-                settings.AI_PROVIDER, 
-                channel_id
-            )
+   
 
     async def process_file_upload(
         self,
