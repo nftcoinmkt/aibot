@@ -963,60 +963,135 @@ class _ChatViewState extends State<ChatView> {
       onTap: () => _showFilePreview(attachment),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.05),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey.withOpacity(0.3)),
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
+        child: isImage
+            ? _buildImageThumbnail(attachment)
+            : _buildFileAttachment(attachment, fileExtension, isImage, isPdf),
+      ),
+    );
+  }
+
+  Widget _buildImageThumbnail(Attachment attachment) {
+    final imageUrl = widget.apiService.resolveFileUrl(attachment.fileUrl);
+    
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(
+        children: [
+          Container(
+            constraints: const BoxConstraints(
+              maxWidth: 200,
+              maxHeight: 200,
+              minWidth: 150,
+              minHeight: 100,
+            ),
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  width: 150,
+                  height: 100,
+                  color: Colors.grey[200],
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return _buildFileAttachment(
+                  attachment,
+                  path.extension(attachment.fileName).toLowerCase(),
+                  true,
+                  false,
+                );
+              },
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: _getFileIconColor(fileExtension).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                _getFileIcon(fileExtension),
-                color: _getFileIconColor(fileExtension),
-                size: 24,
+              child: const Icon(
+                CupertinoIcons.eye,
+                color: Colors.white,
+                size: 16,
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    attachment.fileName,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFileAttachment(Attachment attachment, String fileExtension, bool isImage, bool isPdf) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _getFileIconColor(fileExtension).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              _getFileIcon(fileExtension),
+              color: _getFileIconColor(fileExtension),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  attachment.fileName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isImage ? 'Image • Tap to view' :
-                    isPdf ? 'PDF Document • Tap to view' :
-                    'File • Tap to view',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isImage ? 'Image • Tap to view' :
+                  isPdf ? 'PDF Document • Tap to view' :
+                  'File • Tap to view',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Icon(
-              CupertinoIcons.eye,
-              color: Colors.grey[600],
-              size: 18,
-            ),
-          ],
-        ),
+          ),
+          Icon(
+            CupertinoIcons.eye,
+            color: Colors.grey[600],
+            size: 18,
+          ),
+        ],
       ),
     );
   }
