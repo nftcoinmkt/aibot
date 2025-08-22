@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_ai_bot/models/attachment_model.dart';
 import 'package:flutter_ai_bot/models/channel_model.dart';
 import 'package:flutter_ai_bot/models/channel_member_model.dart';
@@ -887,69 +888,92 @@ class _ChatViewState extends State<ChatView> {
       bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(18),
     );
 
-    return Container(
-      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-      decoration: BoxDecoration(
-        color: bubbleColor,
-        borderRadius: bubbleRadius,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Sender name - show for all messages
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              _getSenderName(message, isMe, isAI),
-              style: TextStyle(
-                color: isAI
-                    ? Colors.blue[700]
-                    : isMe
-                        ? Colors.green[700]
-                        : const Color(0xFF25D366),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+    return InkWell(
+      onLongPress: () => _showMessageOptions(context, message),
+      borderRadius: bubbleRadius,
+      child: Container(
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        decoration: BoxDecoration(
+          color: bubbleColor,
+          borderRadius: bubbleRadius,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
             ),
-          ),
-          if (message.attachment != null)
-            _buildAttachmentView(message.attachment!),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Flexible(
-                child: Text(
-                  message.message,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontSize: 16,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Sender name and copy button row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      _getSenderName(message, isMe, isAI),
+                      style: TextStyle(
+                        color: isAI
+                            ? Colors.blue[700]
+                            : isMe
+                                ? Colors.green[700]
+                                : const Color(0xFF25D366),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Tooltip(
-                message: _formatFullTimestamp(message.timestamp),
-                child: Text(
-                  _formatTime(message.timestamp),
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 11,
+                // Copy button
+                GestureDetector(
+                  onTap: () => _copyMessage(message.message),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      CupertinoIcons.doc_on_doc,
+                      size: 14,
+                      color: Colors.grey[600],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+            if (message.attachment != null)
+              _buildAttachmentView(message.attachment!),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Text(
+                    message.message,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: _formatFullTimestamp(message.timestamp),
+                  child: Text(
+                    _formatTime(message.timestamp),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1306,5 +1330,62 @@ class _ChatViewState extends State<ChatView> {
   String _formatFullTimestamp(DateTime timestamp) {
     return '${timestamp.day.toString().padLeft(2, '0')}/${timestamp.month.toString().padLeft(2, '0')}/${timestamp.year} '
            '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}:${timestamp.second.toString().padLeft(2, '0')}';
+  }
+
+  void _copyMessage(String messageText) async {
+    await Clipboard.setData(ClipboardData(text: messageText));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(CupertinoIcons.checkmark_circle, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              const Text('Message copied to clipboard'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF25D366),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+  }
+
+  void _showMessageOptions(BuildContext context, ChatMessage message) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(CupertinoIcons.doc_on_doc, color: Color(0xFF25D366)),
+              title: const Text('Copy Message'),
+              onTap: () {
+                Navigator.pop(context);
+                _copyMessage(message.message);
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
   }
 }
