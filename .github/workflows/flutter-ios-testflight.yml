@@ -80,9 +80,26 @@ jobs:
         # Apply provisioning profile
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
         
-        # Extract UUID from provisioning profile and rename it properly
-        PROFILE_UUID=$(security cms -D -i $PP_PATH | grep -A1 UUID | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        # Extract and analyze provisioning profile
+        echo "Analyzing provisioning profile..."
+        security cms -D -i $PP_PATH > /tmp/profile_content.plist
+        
+        # Extract key information
+        PROFILE_UUID=$(grep -A1 UUID /tmp/profile_content.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        BUNDLE_ID=$(grep -A1 application-identifier /tmp/profile_content.plist | grep string | sed 's/.*<string>[^.]*\.\(.*\)<\/string>.*/\1/')
+        TEAM_ID=$(grep -A1 'TeamIdentifier' /tmp/profile_content.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        
         echo "Provisioning profile UUID: $PROFILE_UUID"
+        echo "Bundle ID in profile: $BUNDLE_ID"
+        echo "Team ID in profile: $TEAM_ID"
+        echo "Expected bundle ID: com.hippocampus.brain"
+        
+        # Check if bundle IDs match
+        if [[ "$BUNDLE_ID" != "com.hippocampus.brain" ]]; then
+          echo "❌ Bundle ID mismatch! Profile is for '$BUNDLE_ID' but project uses 'com.hippocampus.brain'"
+          echo "You need to create a new provisioning profile for com.hippocampus.brain"
+          exit 1
+        fi
         
         # Copy with proper UUID name
         cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
