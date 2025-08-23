@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>method</key>
-    <string>app-store</string>
+    <string>app-store-connect</string>
     <key>uploadBitcode</key>
     <false/>
     <key>uploadSymbols</key>
@@ -12,5 +12,10 @@
     <false/>
     <key>teamID</key>
     <string>9DP9KC9L59</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.hippocampus.brain</key>
+        <string>ab05bf8c-21c2-4deb-b649-2852e713ead4</string>
+    </dict>
 </dict>
 </plist>
