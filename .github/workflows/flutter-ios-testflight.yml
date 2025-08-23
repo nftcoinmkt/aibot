@@ -173,14 +173,44 @@ jobs:
           --verbose
         
     - name: Upload to TestFlight
+      working-directory: ./flutter_ai_bot
       env:
         APPLE_ID: ${{ secrets.APPLE_ID }}
         APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       run: |
+        # Find the actual IPA file location
+        echo "Looking for IPA files..."
+        find build -name "*.ipa" -type f 2>/dev/null || echo "No IPA files found in build directory"
+        
+        # List build directory structure
+        echo "Build directory structure:"
+        ls -la build/ 2>/dev/null || echo "Build directory not found"
+        ls -la build/ios/ 2>/dev/null || echo "iOS build directory not found"
+        
+        # Try common IPA locations
+        IPA_PATH=""
+        if [ -f "build/ios/ipa/flutter_ai_bot.ipa" ]; then
+          IPA_PATH="build/ios/ipa/flutter_ai_bot.ipa"
+        elif [ -f "build/ios/ipa/Runner.ipa" ]; then
+          IPA_PATH="build/ios/ipa/Runner.ipa"
+        else
+          # Find any IPA file
+          IPA_PATH=$(find build -name "*.ipa" -type f | head -1)
+        fi
+        
+        if [ -z "$IPA_PATH" ]; then
+          echo "❌ No IPA file found!"
+          exit 1
+        fi
+        
+        echo "✅ Found IPA at: $IPA_PATH"
+        echo "IPA file size: $(ls -lh "$IPA_PATH" | awk '{print $5}')"
+        
+        # Upload to TestFlight
         xcrun altool --upload-app \
           --type ios \
-          --file flutter_ai_bot/build/ios/ipa/flutter_ai_bot.ipa \
+          --file "$IPA_PATH" \
           --username "$APPLE_ID" \
           --password "$APPLE_APP_SPECIFIC_PASSWORD" \
           --asc-provider "$APPLE_TEAM_ID"
@@ -189,7 +219,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: flutter-ai-bot-ios-ipa
-        path: flutter_ai_bot/build/ios/ipa/flutter_ai_bot.ipa
+        path: flutter_ai_bot/build/ios/ipa/*.ipa
         
     - name: Create Release (on main branch)
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -198,7 +228,7 @@ jobs:
         tag_name: ios-v${{ env.BUILD_NUMBER }}
         name: Flutter AI Bot iOS v${{ env.BUILD_NUMBER }}
         files: |
-          flutter_ai_bot/build/ios/ipa/flutter_ai_bot.ipa
+          flutter_ai_bot/build/ios/ipa/*.ipa
         generate_release_notes: true
         make_latest: true
       env:
