@@ -61,16 +61,41 @@ jobs:
         KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
 
         # Import certificate and provisioning profile from secrets
-        echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-        echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+        echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode > $CERTIFICATE_PATH
+        echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode > $PP_PATH
+
+        # Verify files were created successfully
+        if [ ! -f "$CERTIFICATE_PATH" ]; then
+          echo "Error: Certificate file was not created"
+          exit 1
+        fi
+        
+        if [ ! -f "$PP_PATH" ]; then
+          echo "Error: Provisioning profile file was not created"
+          exit 1
+        fi
+
+        # Verify certificate file is valid
+        file_output=$(file "$CERTIFICATE_PATH")
+        if [[ ! "$file_output" == *"PKCS#12"* ]]; then
+          echo "Error: Certificate file is not a valid PKCS#12 file"
+          echo "File type detected: $file_output"
+          exit 1
+        fi
 
         # Create temporary keychain
         security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
         security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
         security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
-        # Import certificate to keychain
-        security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+        # Import certificate to keychain with better error handling
+        if ! security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH; then
+          echo "Error: Failed to import certificate to keychain"
+          echo "Certificate path: $CERTIFICATE_PATH"
+          echo "Keychain path: $KEYCHAIN_PATH"
+          exit 1
+        fi
+        
         security list-keychain -d user -s $KEYCHAIN_PATH
 
         # Apply provisioning profile
@@ -90,13 +115,6 @@ jobs:
         # Update pubspec.yaml with new build number
         sed -i '' "s/version: 1.0.0+[0-9]*/version: 1.0.0+$BUILD_NUMBER/" pubspec.yaml
         
-    - name: Build iOS Archive
-      working-directory: ./flutter_ai_bot
-      run: |
-        flutter build ipa --release \
-          --build-number=$BUILD_NUMBER \
-          --export-options-plist=ios/Runner/ExportOptions.plist
-          
     - name: Create ExportOptions.plist if not exists
       working-directory: ./flutter_ai_bot/ios/Runner
       run: |
@@ -115,11 +133,18 @@ jobs:
             <key>compileBitcode</key>
             <false/>
             <key>teamID</key>
-            <string>\${{ secrets.APPLE_TEAM_ID }}</string>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
         </dict>
         </plist>
         EOF
         fi
+        
+    - name: Build iOS Archive
+      working-directory: ./flutter_ai_bot
+      run: |
+        flutter build ipa --release \
+          --build-number=$BUILD_NUMBER \
+          --export-options-plist=ios/Runner/ExportOptions.plist
         
     - name: Upload to TestFlight
       env:
