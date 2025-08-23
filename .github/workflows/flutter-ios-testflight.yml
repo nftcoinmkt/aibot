@@ -87,7 +87,19 @@ jobs:
         # Extract key information
         PROFILE_UUID=$(grep -A1 UUID /tmp/profile_content.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
         BUNDLE_ID=$(grep -A1 application-identifier /tmp/profile_content.plist | grep string | sed 's/.*<string>[^.]*\.\(.*\)<\/string>.*/\1/')
-        TEAM_ID=$(grep -A1 'TeamIdentifier' /tmp/profile_content.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        
+        # Try multiple ways to extract Team ID
+        TEAM_ID=$(grep -A1 'TeamIdentifier' /tmp/profile_content.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/' | head -1)
+        if [[ -z "$TEAM_ID" ]]; then
+          TEAM_ID=$(grep -A1 'com.apple.developer.team-identifier' /tmp/profile_content.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        fi
+        
+        # Debug: Show relevant sections of the profile
+        echo "=== Profile Debug Info ==="
+        echo "TeamIdentifier section:"
+        grep -A2 -B2 'TeamIdentifier' /tmp/profile_content.plist || echo "TeamIdentifier not found"
+        echo "Team identifier entitlement:"
+        grep -A2 -B2 'com.apple.developer.team-identifier' /tmp/profile_content.plist || echo "team-identifier entitlement not found"
         
         echo "Provisioning profile UUID: $PROFILE_UUID"
         echo "Bundle ID in profile: $BUNDLE_ID"
@@ -128,15 +140,37 @@ jobs:
     - name: Build iOS Archive
       working-directory: ./flutter_ai_bot
       run: |
+        # Debug: Show current signing setup
+        echo "=== Pre-build Debug Info ==="
+        echo "Available provisioning profiles:"
+        ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
+        echo ""
+        echo "Available signing identities:"
+        security find-identity -v -p codesigning
+        echo ""
+        echo "Xcode project bundle ID:"
+        grep -A1 PRODUCT_BUNDLE_IDENTIFIER ios/Runner.xcodeproj/project.pbxproj | head -1
+        echo ""
+        
         # Set code signing environment variables
         export DEVELOPMENT_TEAM="9DP9KC9L59"
-        export CODE_SIGN_IDENTITY="iPhone Distribution"
+        export CODE_SIGN_IDENTITY="Apple Distribution"
         
-        # Build the iOS archive
+        # Debug: Show Flutter and Xcode versions
+        echo "Flutter version:"
+        flutter --version
+        echo ""
+        echo "Xcode version:"
+        xcodebuild -version
+        echo ""
+        
+        # Try building with verbose output
+        echo "Starting iOS build..."
         flutter build ipa --release \
           --build-number=$BUILD_NUMBER \
           --export-options-plist=ios/Runner/ExportOptions.plist \
-          --dart-define=DEVELOPMENT_TEAM=9DP9KC9L59
+          --dart-define=DEVELOPMENT_TEAM=9DP9KC9L59 \
+          --verbose
         
     - name: Upload to TestFlight
       env:
