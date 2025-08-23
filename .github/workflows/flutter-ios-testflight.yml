@@ -79,7 +79,17 @@ jobs:
 
         # Apply provisioning profile
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-        cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+        
+        # Extract UUID from provisioning profile and rename it properly
+        PROFILE_UUID=$(security cms -D -i $PP_PATH | grep -A1 UUID | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        echo "Provisioning profile UUID: $PROFILE_UUID"
+        
+        # Copy with proper UUID name
+        cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
+        
+        # List installed provisioning profiles
+        echo "Installed provisioning profiles:"
+        ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
         
         # Verify certificate installation
         echo "Installed certificates:"
