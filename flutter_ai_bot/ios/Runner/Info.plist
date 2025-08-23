@@ -45,5 +45,15 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your photo library to allow you to select and upload images for AI analysis and processing.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to your camera to take photos for AI analysis and processing.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app may need access to your microphone for voice input and audio processing features.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app may use your location to provide location-based AI services and features.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

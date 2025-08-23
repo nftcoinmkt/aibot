@@ -1,14 +1,7 @@
 name: Build Flutter iOS and Deploy to TestFlight
 
 on:
-  # push:
-  #   branches: [ main, develop ]
-  #   paths:
-  #     - 'flutter_ai_bot/**'
-  # pull_request:
-  #   branches: [ main ]
-  #   paths:
-  #     - 'flutter_ai_bot/**'
+
   workflow_dispatch:
     inputs:
       build_number:
@@ -31,7 +24,7 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.35.0'
+        flutter-version: '3.24.3'
         channel: 'stable'
         cache: true
         
@@ -80,49 +73,13 @@ jobs:
         # Apply provisioning profile
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
         
-        # Extract and analyze provisioning profile
-        echo "Analyzing provisioning profile..."
-        security cms -D -i $PP_PATH > /tmp/profile_content.plist
+        # Extract provisioning profile UUID
+        PROFILE_UUID=$(security cms -D -i $PP_PATH | grep -A1 UUID | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+        echo "Installing provisioning profile: $PROFILE_UUID"
         
-        # Extract key information
-        PROFILE_UUID=$(grep -A1 UUID /tmp/profile_content.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
-        BUNDLE_ID=$(grep -A1 application-identifier /tmp/profile_content.plist | grep string | sed 's/.*<string>[^.]*\.\(.*\)<\/string>.*/\1/')
-        
-        # Try multiple ways to extract Team ID
-        TEAM_ID=$(grep -A1 'TeamIdentifier' /tmp/profile_content.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/' | head -1)
-        if [[ -z "$TEAM_ID" ]]; then
-          TEAM_ID=$(grep -A1 'com.apple.developer.team-identifier' /tmp/profile_content.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
-        fi
-        
-        # Debug: Show relevant sections of the profile
-        echo "=== Profile Debug Info ==="
-        echo "TeamIdentifier section:"
-        grep -A2 -B2 'TeamIdentifier' /tmp/profile_content.plist || echo "TeamIdentifier not found"
-        echo "Team identifier entitlement:"
-        grep -A2 -B2 'com.apple.developer.team-identifier' /tmp/profile_content.plist || echo "team-identifier entitlement not found"
-        
-        echo "Provisioning profile UUID: $PROFILE_UUID"
-        echo "Bundle ID in profile: $BUNDLE_ID"
-        echo "Team ID in profile: $TEAM_ID"
-        echo "Expected bundle ID: com.hippocampus.brain"
-        
-        # Check if bundle IDs match
-        if [[ "$BUNDLE_ID" != "com.hippocampus.brain" ]]; then
-          echo "❌ Bundle ID mismatch! Profile is for '$BUNDLE_ID' but project uses 'com.hippocampus.brain'"
-          echo "You need to create a new provisioning profile for com.hippocampus.brain"
-          exit 1
-        fi
-        
-        # Copy with proper UUID name
+        # Install provisioning profile
         cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
-        
-        # List installed provisioning profiles
-        echo "Installed provisioning profiles:"
-        ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
-        
-        # Verify certificate installation
-        echo "Installed certificates:"
-        security find-identity -v -p codesigning $KEYCHAIN_PATH
+        echo "✅ Certificate and provisioning profile installed successfully"
         
     - name: Set build number
       working-directory: ./flutter_ai_bot
@@ -139,38 +96,15 @@ jobs:
         
     - name: Build iOS Archive
       working-directory: ./flutter_ai_bot
+      env:
+        DEVELOPMENT_TEAM: "9DP9KC9L59"
+        CODE_SIGN_IDENTITY: "Apple Distribution"
       run: |
-        # Debug: Show current signing setup
-        echo "=== Pre-build Debug Info ==="
-        echo "Available provisioning profiles:"
-        ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
-        echo ""
-        echo "Available signing identities:"
-        security find-identity -v -p codesigning
-        echo ""
-        echo "Xcode project bundle ID:"
-        grep -A1 PRODUCT_BUNDLE_IDENTIFIER ios/Runner.xcodeproj/project.pbxproj | head -1
-        echo ""
-        
-        # Set code signing environment variables
-        export DEVELOPMENT_TEAM="9DP9KC9L59"
-        export CODE_SIGN_IDENTITY="Apple Distribution"
-        
-        # Debug: Show Flutter and Xcode versions
-        echo "Flutter version:"
-        flutter --version
-        echo ""
-        echo "Xcode version:"
-        xcodebuild -version
-        echo ""
-        
-        # Try building with verbose output
-        echo "Starting iOS build..."
+        echo "🚀 Building iOS app for TestFlight..."
         flutter build ipa --release \
           --build-number=$BUILD_NUMBER \
           --export-options-plist=ios/Runner/ExportOptions.plist \
-          --dart-define=DEVELOPMENT_TEAM=9DP9KC9L59 \
-          --verbose
+          --dart-define=DEVELOPMENT_TEAM=9DP9KC9L59
         
     - name: Upload to TestFlight
       working-directory: ./flutter_ai_bot
@@ -179,33 +113,15 @@ jobs:
         APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       run: |
-        # Find the actual IPA file location
-        echo "Looking for IPA files..."
-        find build -name "*.ipa" -type f 2>/dev/null || echo "No IPA files found in build directory"
-        
-        # List build directory structure
-        echo "Build directory structure:"
-        ls -la build/ 2>/dev/null || echo "Build directory not found"
-        ls -la build/ios/ 2>/dev/null || echo "iOS build directory not found"
-        
-        # Try common IPA locations
-        IPA_PATH=""
-        if [ -f "build/ios/ipa/flutter_ai_bot.ipa" ]; then
-          IPA_PATH="build/ios/ipa/flutter_ai_bot.ipa"
-        elif [ -f "build/ios/ipa/Runner.ipa" ]; then
-          IPA_PATH="build/ios/ipa/Runner.ipa"
-        else
-          # Find any IPA file
-          IPA_PATH=$(find build -name "*.ipa" -type f | head -1)
-        fi
+        # Find IPA file
+        IPA_PATH=$(find build -name "*.ipa" -type f | head -1)
         
         if [ -z "$IPA_PATH" ]; then
           echo "❌ No IPA file found!"
           exit 1
         fi
         
-        echo "✅ Found IPA at: $IPA_PATH"
-        echo "IPA file size: $(ls -lh "$IPA_PATH" | awk '{print $5}')"
+        echo "📱 Uploading $(basename "$IPA_PATH") to TestFlight..."
         
         # Upload to TestFlight
         xcrun altool --upload-app \
@@ -214,6 +130,8 @@ jobs:
           --username "$APPLE_ID" \
           --password "$APPLE_APP_SPECIFIC_PASSWORD" \
           --asc-provider "$APPLE_TEAM_ID"
+          
+        echo "✅ Successfully uploaded to TestFlight!"
           
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
@@ -237,5 +155,6 @@ jobs:
     - name: Clean up keychain and provisioning profile
       if: ${{ always() }}
       run: |
-        security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
-        rm ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision || true
+        security delete-keychain $RUNNER_TEMP/app-signing.keychain-db 2>/dev/null || true
+        rm ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision 2>/dev/null || true
+        echo "🧹 Cleanup completed"
