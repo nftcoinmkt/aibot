@@ -90,43 +90,6 @@ jobs:
         # Update pubspec.yaml with new build number
         sed -i '' "s/version: 1.0.0+[0-9]*/version: 1.0.0+$BUILD_NUMBER/" pubspec.yaml
         
-    - name: Debug file structure
-      working-directory: ./flutter_ai_bot
-      run: |
-        echo "Current directory: $(pwd)"
-        echo "Listing ios directory structure:"
-        ls -la ios/ || echo "ios directory not found"
-        echo "Listing ios/Runner directory:"
-        ls -la ios/Runner/ || echo "ios/Runner directory not found"
-        echo "Checking for ExportOptions.plist:"
-        if [ -f "ios/Runner/ExportOptions.plist" ]; then
-          echo "✅ ExportOptions.plist found"
-          cat ios/Runner/ExportOptions.plist
-        else
-          echo "❌ ExportOptions.plist not found"
-          echo "Creating ExportOptions.plist..."
-          mkdir -p ios/Runner
-          cat > ios/Runner/ExportOptions.plist << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>method</key>
-    <string>app-store</string>
-    <key>uploadBitcode</key>
-    <false/>
-    <key>uploadSymbols</key>
-    <true/>
-    <key>compileBitcode</key>
-    <false/>
-    <key>teamID</key>
-    <string>9DP9KC9L59</string>
-</dict>
-</plist>
-EOF
-          echo "✅ ExportOptions.plist created"
-        fi
-        
     - name: Build iOS Archive
       working-directory: ./flutter_ai_bot
       run: |
