@@ -373,6 +373,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hippocampus.brain;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "ab05bf8c-21c2-4deb-b649-2852e713ead4";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -577,6 +578,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hippocampus.brain;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "ab05bf8c-21c2-4deb-b649-2852e713ead4";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
