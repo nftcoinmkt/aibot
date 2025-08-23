@@ -72,10 +72,18 @@ jobs:
         # Import certificate to keychain
         security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
         security list-keychain -d user -s $KEYCHAIN_PATH
+        
+        # Set the keychain as default and make it searchable
+        security default-keychain -s $KEYCHAIN_PATH
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
         # Apply provisioning profile
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
         cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+        
+        # Verify certificate installation
+        echo "Installed certificates:"
+        security find-identity -v -p codesigning $KEYCHAIN_PATH
         
     - name: Set build number
       working-directory: ./flutter_ai_bot
@@ -93,9 +101,15 @@ jobs:
     - name: Build iOS Archive
       working-directory: ./flutter_ai_bot
       run: |
+        # Set code signing environment variables
+        export DEVELOPMENT_TEAM="9DP9KC9L59"
+        export CODE_SIGN_IDENTITY="iPhone Distribution"
+        
+        # Build the iOS archive
         flutter build ipa --release \
           --build-number=$BUILD_NUMBER \
-          --export-options-plist=ios/Runner/ExportOptions.plist
+          --export-options-plist=ios/Runner/ExportOptions.plist \
+          --dart-define=DEVELOPMENT_TEAM=9DP9KC9L59
         
     - name: Upload to TestFlight
       env:
