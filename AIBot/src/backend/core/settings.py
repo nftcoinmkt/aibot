@@ -5,7 +5,11 @@ from typing import Dict
 
 class Settings(BaseSettings):
     # Pydantic v2 settings configuration
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra='ignore',  # ignore unknown env vars like legacy keys
+    )
 
     PROJECT_NAME: str = "FastAPI Multi-Tenant AI"
     API_V1_STR: str = "/api/v1"
@@ -27,6 +31,12 @@ class Settings(BaseSettings):
     AI_PROVIDER: str = "groq"  # "groq" or "gemini"
     GROQ_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
+    # Feature flags
+    # Support both AI_CHAT_ENABLED and legacy AI_CHAT env variables
+    AI_CHAT_ENABLED: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("AI_CHAT_ENABLED", "AI_CHAT"),
+    )  # Global default; can be overridden per-tenant
 
     # Email Settings
     SMTP_HOST: str = "smtp.gmail.com"

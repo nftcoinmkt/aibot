@@ -90,10 +90,9 @@ class ChatService:
         message: str,
         channel_id: int
     ) -> List[dict]:
-        """Process channel message and return both user message and AI response as separate objects."""
-        # Get AI response
-        response = self.chat_agent.generate_response(message, user_id, tenant_name, channel_id)
-        provider = self.chat_agent.get_current_provider()
+        """Process channel message and return messages to the client.
+        If AI chat is disabled, only the user message is saved and returned.
+        """
 
         # Get tenant-specific database session
         db_generator = get_tenant_db(tenant_name)
@@ -112,50 +111,70 @@ class ChatService:
             db.commit()
             db.refresh(user_message)
 
-            # Save AI response
-            ai_message = ChannelMessage(
-                channel_id=channel_id,
-                user_id=-1,  # AI user ID (Flutter expects -1 for AI messages)
-                message=response,
-                response=None,  # Don't duplicate the message in response field
-                provider=provider,
-                message_type="ai",
-                created_at=datetime.now(timezone.utc)
-            )
-            db.add(ai_message)
-            db.commit()
-            db.refresh(ai_message)
+            # If AI chat is disabled, return only the user message
+            if not settings.AI_CHAT_ENABLED:
+                messages = [
+                    {
+                        "id": user_message.id,
+                        "channel_id": user_message.channel_id,
+                        "user_id": user_message.user_id,
+                        "message": user_message.message,
+                        "response": None,
+                        "provider": None,
+                        "message_type": user_message.message_type,
+                        "created_at": user_message.created_at
+                    }
+                ]
+            else:
+                # Get AI response
+                response = self.chat_agent.generate_response(message, user_id, tenant_name, channel_id)
+                provider = self.chat_agent.get_current_provider()
 
-            # Convert to response format before closing the session
-            messages = [
-                {
-                    "id": user_message.id,
-                    "channel_id": user_message.channel_id,
-                    "user_id": user_message.user_id,
-                    "message": user_message.message,
-                    "response": None,
-                    "provider": None,
-                    "message_type": user_message.message_type,
-                    "created_at": user_message.created_at
-                },
-                {
-                    "id": ai_message.id,
-                    "channel_id": ai_message.channel_id,
-                    "user_id": ai_message.user_id,
-                    "message": ai_message.message,
-                    "response": None,  # AI messages don't need response field
-                    "provider": ai_message.provider,
-                    "message_type": ai_message.message_type,
-                    "created_at": ai_message.created_at
-                }
-            ]
+                # Save AI response
+                ai_message = ChannelMessage(
+                    channel_id=channel_id,
+                    user_id=-1,  # AI user ID (Flutter expects -1 for AI messages)
+                    message=response,
+                    response=None,  # Don't duplicate the message in response field
+                    provider=provider,
+                    message_type="ai",
+                    created_at=datetime.now(timezone.utc)
+                )
+                db.add(ai_message)
+                db.commit()
+                db.refresh(ai_message)
+
+                # Convert to response format before closing the session
+                messages = [
+                    {
+                        "id": user_message.id,
+                        "channel_id": user_message.channel_id,
+                        "user_id": user_message.user_id,
+                        "message": user_message.message,
+                        "response": None,
+                        "provider": None,
+                        "message_type": user_message.message_type,
+                        "created_at": user_message.created_at
+                    },
+                    {
+                        "id": ai_message.id,
+                        "channel_id": ai_message.channel_id,
+                        "user_id": ai_message.user_id,
+                        "message": ai_message.message,
+                        "response": None,  # AI messages don't need response field
+                        "provider": ai_message.provider,
+                        "message_type": ai_message.message_type,
+                        "created_at": ai_message.created_at
+                    }
+                ]
 
             # Broadcast messages to WebSocket connections if manager is available
             # Exclude the sender to avoid duplicates (sender gets messages from API response)
             if manager:
                 print(f"Broadcasting {len(messages)} messages to channel {channel_id} via WebSocket")
                 for message_dict in messages:
-                    print(f"Broadcasting message: {message_dict['id']} - {message_dict['message'][:50]}...")
+                    preview = message_dict['message'][:50] if isinstance(message_dict.get('message'), str) else ''
+                    print(f"Broadcasting message: {message_dict['id']} - {preview}...")
                     await manager.broadcast_new_message_exclude_user(channel_id, message_dict, user_id)
             else:
                 print("WebSocket manager not available for broadcasting")
@@ -241,59 +260,80 @@ class ChatService:
             db.commit()
             db.refresh(user_message)
 
-            # Get AI analysis of the file
-            try:
-                ai_response = self.chat_agent.analyze_file(file_path, analysis_prompt, user_id, tenant_name, channel_id)
-                provider = self.chat_agent.get_current_provider()
-            except Exception as e:
-                print(f"AI analysis failed: {str(e)}")
-                ai_response = f"File uploaded successfully! I can see you've shared {file_name}. Unfortunately, I encountered an issue analyzing it: {str(e)}"
-                provider = self.chat_agent.get_current_provider()
+            # If AI chat is disabled, skip AI analysis and only return the user message
+            if not settings.AI_CHAT_ENABLED:
+                messages = [
+                    {
+                        "id": user_message.id,
+                        "channel_id": user_message.channel_id,
+                        "user_id": user_message.user_id,
+                        "message": user_message.message,
+                        "response": None,
+                        "provider": None,
+                        "message_type": user_message.message_type,
+                        "created_at": user_message.created_at,
+                        "attachment": {
+                            "id": str(user_message.id),
+                            "file_url": user_message.file_url,
+                            "file_name": user_message.file_name,
+                            "file_type": user_message.file_type
+                        } if user_message.file_url else None
+                    }
+                ]
+            else:
+                # Get AI analysis of the file
+                try:
+                    ai_response = self.chat_agent.analyze_file(file_path, analysis_prompt, user_id, tenant_name, channel_id)
+                    provider = self.chat_agent.get_current_provider()
+                except Exception as e:
+                    print(f"AI analysis failed: {str(e)}")
+                    ai_response = f"File uploaded successfully! I can see you've shared {file_name}. Unfortunately, I encountered an issue analyzing it: {str(e)}"
+                    provider = self.chat_agent.get_current_provider()
 
-            # Save AI response
-            ai_message = ChannelMessage(
-                channel_id=channel_id,
-                user_id=-1,  # AI user ID
-                message=ai_response,
-                response=None,  # Don't duplicate the message in response field
-                provider=provider,
-                message_type="ai",
-                created_at=datetime.now(timezone.utc)
-            )
-            db.add(ai_message)
-            db.commit()
-            db.refresh(ai_message)
+                # Save AI response
+                ai_message = ChannelMessage(
+                    channel_id=channel_id,
+                    user_id=-1,  # AI user ID
+                    message=ai_response,
+                    response=None,  # Don't duplicate the message in response field
+                    provider=provider,
+                    message_type="ai",
+                    created_at=datetime.now(timezone.utc)
+                )
+                db.add(ai_message)
+                db.commit()
+                db.refresh(ai_message)
 
-            # Convert to response format before closing the session
-            messages = [
-                {
-                    "id": user_message.id,
-                    "channel_id": user_message.channel_id,
-                    "user_id": user_message.user_id,
-                    "message": user_message.message,
-                    "response": None,
-                    "provider": None,
-                    "message_type": user_message.message_type,
-                    "created_at": user_message.created_at,
-                    "attachment": {
-                        "id": str(user_message.id),
-                        "file_url": user_message.file_url,
-                        "file_name": user_message.file_name,
-                        "file_type": user_message.file_type
-                    } if user_message.file_url else None
-                },
-                {
-                    "id": ai_message.id,
-                    "channel_id": ai_message.channel_id,
-                    "user_id": ai_message.user_id,
-                    "message": ai_message.message,
-                    "response": None,  # AI messages don't need response field
-                    "provider": ai_message.provider,
-                    "message_type": ai_message.message_type,
-                    "created_at": ai_message.created_at,
-                    "attachment": None
-                }
-            ]
+                # Convert to response format before closing the session
+                messages = [
+                    {
+                        "id": user_message.id,
+                        "channel_id": user_message.channel_id,
+                        "user_id": user_message.user_id,
+                        "message": user_message.message,
+                        "response": None,
+                        "provider": None,
+                        "message_type": user_message.message_type,
+                        "created_at": user_message.created_at,
+                        "attachment": {
+                            "id": str(user_message.id),
+                            "file_url": user_message.file_url,
+                            "file_name": user_message.file_name,
+                            "file_type": user_message.file_type
+                        } if user_message.file_url else None
+                    },
+                    {
+                        "id": ai_message.id,
+                        "channel_id": ai_message.channel_id,
+                        "user_id": ai_message.user_id,
+                        "message": ai_message.message,
+                        "response": None,  # AI messages don't need response field
+                        "provider": ai_message.provider,
+                        "message_type": ai_message.message_type,
+                        "created_at": ai_message.created_at,
+                        "attachment": None
+                    }
+                ]
 
             # Broadcast messages to WebSocket connections if manager is available
             # Exclude the sender to avoid duplicates (sender gets messages from API response)
