@@ -30,16 +30,29 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       });
 
       try {
-        await _apiService.forgotPassword(_emailController.text);
-        // TODO: Show success message
-        print('Password reset link sent');
+        await _apiService.forgotPassword(_emailController.text.trim());
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('If an account exists, a reset link has been sent.'),
+            backgroundColor: Color(0xFF25D366),
+          ),
+        );
+        Navigator.of(context).pop();
       } catch (e) {
-        // TODO: Show error message
-        print('Failed to send reset link: $e');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send reset link: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       } finally {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -47,7 +60,10 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Forgot Password')),
+      appBar: AppBar(
+        title: const Text('Forgot Password'),
+        backgroundColor: const Color(0xFF25D366),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -56,21 +72,45 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
             children: [
               TextFormField(
                 controller: _emailController,
-                decoration: InputDecoration(labelText: 'Email'),
+                decoration: const InputDecoration(labelText: 'Email'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your email';
+                  }
+                  final v = value.trim();
+                  final emailRe = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                  if (!emailRe.hasMatch(v)) {
+                    return 'Please enter a valid email';
                   }
                   return null;
                 },
               ),
               SizedBox(height: 20),
-              _isLoading
-                  ? CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: _sendResetLink,
-                      child: Text('Send Reset Link'),
-                    ),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ElevatedButton(
+                        onPressed: _sendResetLink,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF25D366),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Send Reset Link', style: TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.of(context).pushNamed('/reset-password'),
+                child: const Text(
+                  'Already have a token? Reset password',
+                  style: TextStyle(color: Color(0xFF25D366), fontWeight: FontWeight.w500),
+                ),
+              ),
             ],
           ),
         ),

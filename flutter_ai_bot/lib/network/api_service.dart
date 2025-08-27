@@ -19,13 +19,26 @@ class ApiService {
   String? _currentTenantName;
 
   ApiService() {
-    // Environment-based URL configuration
-    if (kDebugMode) {
+    // Environment-based URL configuration with override support
+    const envOverride = String.fromEnvironment('BASE_URL', defaultValue: '');
+    if (envOverride.isNotEmpty) {
+      _baseUrl = envOverride;
+    } else if (kDebugMode) {
       // Local development
-      _baseUrl = 'http://localhost:8000/api/v1';
+      if (kIsWeb) {
+        _baseUrl = 'http://localhost:8000/api/v1';
+      } else if (Platform.isAndroid) {
+        // Android emulator maps host loopback to 10.0.2.2
+        _baseUrl = 'http://10.0.2.2:8000/api/v1';
+      } else {
+        _baseUrl = 'http://localhost:8000/api/v1';
+      }
     } else {
       // Production/Cloud deployment
       _baseUrl = 'https://aibot-backend-272236378462.us-central1.run.app/api/v1';
+    }
+    if (kDebugMode) {
+      print('ApiService initialized with base URL: $_baseUrl');
     }
   }
 
@@ -55,6 +68,80 @@ class ApiService {
       return List<Map<String, dynamic>>.from(data['tenants']);
     } else {
       throw Exception('Failed to load tenants: ${response.body}');
+    }
+  }
+
+  // --- OTP flows ---
+  Future<Map<String, dynamic>> requestOtp({
+    required String contactType, // 'email' or 'phone'
+    required String contact,
+    required String purpose, // 'signup' or 'login'
+    String? tenantName,
+  }) async {
+    final payload = {
+      'contact_type': contactType,
+      'contact': contact,
+      'purpose': purpose,
+      if (tenantName != null) 'tenant_name': tenantName,
+    };
+    final response = await http.post(
+      Uri.parse('$_baseUrl/otp/request'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to request OTP: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> verifySignupOtp({
+    required String contactType, // 'email' or 'phone'
+    required String contact,
+    required String code,
+    required String fullName,
+    required String tenantName,
+    String? password,
+    String? email, // optional for phone-based signup
+  }) async {
+    final payload = {
+      'contact_type': contactType,
+      'contact': contact,
+      'code': code,
+      'full_name': fullName,
+      'tenant_name': tenantName,
+      if (password != null) 'password': password,
+      if (email != null) 'email': email,
+    };
+    final response = await http.post(
+      Uri.parse('$_baseUrl/otp/verify-signup'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('OTP signup verification failed: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> verifyLoginOtp({
+    required String identifier, // email or phone
+    required String code,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/otp/verify-login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'identifier': identifier, 'code': code}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('OTP login verification failed: ${response.body}');
     }
   }
 
@@ -132,11 +219,84 @@ class ApiService {
     final response = await http.post(
       Uri.parse('$_baseUrl/forgot-password'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email}),
+      // Backend expects a raw JSON string body (not embedded in an object)
+      body: jsonEncode(email),
     );
 
     if (response.statusCode != 200) {
       throw Exception('Failed to send password reset email: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> loginByIdentifier(String identifier, String password) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/login/identifier'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'identifier': identifier, 'password': password}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      String errorMessage = 'Failed to login';
+      try {
+        final errorData = jsonDecode(response.body);
+        if (errorData['detail'] != null) {
+          errorMessage = errorData['detail'];
+        }
+      } catch (e) {
+        errorMessage = 'Login failed: ${response.body}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $_userToken',
+      },
+      body: jsonEncode({
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      String message = 'Failed to change password';
+      try {
+        final data = jsonDecode(response.body);
+        message = data['detail'] ?? data['msg'] ?? message;
+      } catch (_) {}
+      throw Exception(message);
+    }
+  }
+
+  Future<void> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'token': token,
+        'new_password': newPassword,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      String message = 'Failed to reset password';
+      try {
+        final data = jsonDecode(response.body);
+        message = data['detail'] ?? data['msg'] ?? message;
+      } catch (_) {}
+      throw Exception(message);
     }
   }
 

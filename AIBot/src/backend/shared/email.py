@@ -3,7 +3,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
 
-from src.Backend.core.config import settings
+from src.backend.core.settings import settings
 
 
 def send_email(

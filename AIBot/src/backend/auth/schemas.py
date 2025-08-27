@@ -104,3 +104,53 @@ class UserStats(BaseModel):
     active_users: int
     users_by_role: dict
     recent_registrations: int
+
+
+# New schemas for OTP & phone/email flows
+class ContactType(str, Enum):
+    email = "email"
+    phone = "phone"
+
+
+class OtpPurpose(str, Enum):
+    signup = "signup"
+    login = "login"
+    invite = "invite"
+
+
+class OTPRequestIn(BaseModel):
+    contact_type: ContactType
+    contact: str
+    purpose: OtpPurpose
+    tenant_name: str | None = None
+
+
+class OTPVerifySignupIn(BaseModel):
+    contact_type: ContactType
+    contact: str
+    code: str
+    full_name: str
+    tenant_name: str
+    # Required password for account creation
+    password: str = Field(..., min_length=6)
+    # Optional email for phone-based signup, or optional phone for email-based signup
+    email: EmailStr | None = None
+    phone_number: str | None = None
+
+
+class OTPVerifyLoginIn(BaseModel):
+    identifier: str  # email or phone number
+    code: str
+
+
+class LoginByIdentifierRequest(BaseModel):
+    identifier: str  # email or phone number
+    password: str
+
+
+class InviteMemberIn(BaseModel):
+    tenant_name: str
+    full_name: str
+    email: EmailStr | None = None
+    phone_number: str | None = None
+    role: UserRole | None = None

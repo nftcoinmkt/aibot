@@ -95,6 +95,59 @@ class UserManagementService:
             return None
         return user
 
+    def get_user_by_phone(self, db: Session, phone_number: str) -> Optional[models.User]:
+        """Get user by phone number via `UserContact`."""
+        contact = (
+            db.query(models.UserContact)
+            .filter(models.UserContact.phone_number == phone_number)
+            .first()
+        )
+        if not contact:
+            return None
+        return self.get_user_by_id(db, contact.user_id)
+
+    def get_user_by_identifier(self, db: Session, identifier: str) -> Optional[models.User]:
+        """Get user by email (if contains '@') or by phone number otherwise."""
+        if "@" in identifier:
+            return self.get_user_by_email(db, identifier)
+        return self.get_user_by_phone(db, identifier)
+
+    def authenticate_by_identifier(self, db: Session, identifier: str, password: str) -> Optional[models.User]:
+        """Authenticate using either email or phone as identifier."""
+        user = self.get_user_by_identifier(db, identifier)
+        if not user:
+            return None
+        if not verify_password(password, user.hashed_password):
+            return None
+        return user
+
+    def link_phone_to_user(self, db: Session, user: models.User, phone_number: str, verified: bool = False) -> models.UserContact:
+        """Attach a phone number to a user, creating or updating `UserContact`."""
+        existing = (
+            db.query(models.UserContact)
+            .filter(models.UserContact.phone_number == phone_number)
+            .first()
+        )
+        if existing:
+            # If phone already linked to someone else, prevent takeover
+            if existing.user_id != user.id:
+                raise HTTPException(status_code=400, detail="Phone number already linked to another user")
+            if verified and not existing.is_verified:
+                existing.is_verified = True
+                db.commit()
+                db.refresh(existing)
+            return existing
+
+        contact = models.UserContact(
+            user_id=user.id,
+            phone_number=phone_number,
+            is_verified=verified,
+        )
+        db.add(contact)
+        db.commit()
+        db.refresh(contact)
+        return contact
+
     def update_user(self, db: Session, user_id: int, user_update: schemas.UserUpdate) -> Optional[models.User]:
         """Update user information."""
         user = self.get_user_by_id(db, user_id)

@@ -9,7 +9,7 @@ from src.backend.core.settings import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-ALGORITHM = "HS256"
+ALGORITHM = settings.ALGORITHM
 
 def create_access_token(
     subject: Union[str, Any], expires_delta: timedelta = None

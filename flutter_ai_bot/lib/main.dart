@@ -6,6 +6,8 @@ import 'package:flutter_ai_bot/views/login_view.dart';
 import 'package:flutter_ai_bot/views/signup_view.dart';
 import 'package:flutter_ai_bot/views/create_channel_view.dart';
 import 'package:flutter_ai_bot/views/invite_member_view.dart';
+import 'package:flutter_ai_bot/views/change_password_view.dart';
+import 'package:flutter_ai_bot/views/reset_password_view.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -106,11 +108,43 @@ class _MyAppState extends State<MyApp> {
         '/home': (context) => MainNavigation(apiService: apiService),
         '/channels': (context) => MainNavigation(apiService: apiService, initialIndex: 1),
         '/create-channel': (context) => CreateChannelView(apiService: apiService),
+        '/change-password': (context) => ChangePasswordView(apiService: apiService),
+        '/reset-password': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final token = args != null ? (args['token'] as String? ?? '') : '';
+          return ResetPasswordView(apiService: apiService, initialToken: token.isNotEmpty ? token : null);
+        },
         '/invite-member': (context) {
           final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
           final tenant = args != null ? (args['tenant'] as String? ?? '') : '';
           return InviteMemberView(apiService: apiService, fixedTenantName: tenant);
         },
+      },
+      onGenerateRoute: (settings) {
+        final name = settings.name ?? '';
+        if (name.startsWith('/reset-password')) {
+          final uri = Uri.parse(name);
+          final token = uri.queryParameters['token'];
+          return MaterialPageRoute(
+            builder: (context) => ResetPasswordView(
+              apiService: apiService,
+              initialToken: token,
+            ),
+            settings: settings,
+          );
+        }
+        if (name.startsWith('/invite-member')) {
+          final uri = Uri.parse(name);
+          final tenant = uri.queryParameters['tenant'] ?? '';
+          return MaterialPageRoute(
+            builder: (context) => InviteMemberView(
+              apiService: apiService,
+              fixedTenantName: tenant,
+            ),
+            settings: settings,
+          );
+        }
+        return null;
       },
     );
   }

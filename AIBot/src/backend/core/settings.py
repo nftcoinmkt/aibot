@@ -44,6 +44,19 @@ class Settings(BaseSettings):
     SMTP_USER: str | None = None
     SMTP_PASSWORD: str | None = None
 
+    # MessageCentral (SMS/OTP) Settings
+    MESSAGECENTRAL_BASE_URL: str = "https://cpaas.messagecentral.com"
+    MESSAGECENTRAL_CUSTOMER_ID: str | None = None
+    # Support both MESSAGECENTRAL_AUTH_TOKEN and MESSAGECENTRAL_BEARER_TOKEN for compatibility
+    MESSAGECENTRAL_AUTH_TOKEN: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("MESSAGECENTRAL_AUTH_TOKEN", "MESSAGECENTRAL_BEARER_TOKEN"),
+    )
+
+    # OTP settings
+    OTP_EXPIRY_MINUTES: int = 5
+    OTP_RESEND_INTERVAL_SECONDS: int = 30
+
 
 settings = Settings()
 

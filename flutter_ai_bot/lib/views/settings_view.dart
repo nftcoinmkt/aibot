@@ -138,6 +138,15 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           const Divider(height: 1),
           _buildSettingsItem(
+            icon: CupertinoIcons.lock,
+            title: 'Change Password',
+            subtitle: 'Update your password',
+            onTap: () {
+              Navigator.of(context).pushNamed('/change-password');
+            },
+          ),
+          const Divider(height: 1),
+          _buildSettingsItem(
             icon: CupertinoIcons.moon,
             title: 'Dark Mode',
             subtitle: 'Switch to dark theme',
@@ -207,8 +216,9 @@ class _SettingsViewState extends State<SettingsView> {
               );
               
               if (confirmed == true) {
-                // Handle sign out
-                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                await widget.apiService.signout();
+                if (!mounted) return;
+                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
               }
             },
             textColor: Colors.red,
