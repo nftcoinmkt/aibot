@@ -125,6 +125,10 @@ jobs:
         # Set environment variables for the seeding script
         export BACKEND_URL="$SERVICE_URL"
         export ENVIRONMENT="${{ github.event.inputs.environment || 'staging' }}"
+        export MESSAGECENTRAL_BASE_URL="https://cpaas.messagecentral.com"
+        export MESSAGECENTRAL_CUSTOMER_ID="C-9FBBA6F36AA14EC"
+        export MESSAGECENTRAL_AUTH_TOKEN="${{ secrets.MESSAGECENTRAL_AUTH_TOKEN }}"
+        export AI_CHAT_ENABLED="False"
         
         # Run the seeding script
         python scripts/seed_data.py
