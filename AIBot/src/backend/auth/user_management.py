@@ -50,13 +50,14 @@ class UserManagementService:
                 detail=f"Invalid organization. Please select from available organizations.",
             )
 
-        # Check if user already exists by email
-        db_user = self.get_user_by_email(db=db, email=user.email)
-        if db_user:
-            raise HTTPException(
-                status_code=400,
-                detail="The user with this email already exists in the system.",
-            )
+        # Check if user already exists by email (only if email is provided)
+        if user.email:
+            db_user = self.get_user_by_email(db=db, email=user.email)
+            if db_user:
+                raise HTTPException(
+                    status_code=400,
+                    detail="The user with this email already exists in the system.",
+                )
         
         # Get or create tenant
         tenant = self.get_tenant_by_name(db, name=user.tenant_name)
@@ -78,12 +79,49 @@ class UserManagementService:
         db.refresh(db_user)
         
         # Send welcome email (optional - don't fail signup if email fails)
-        try:
-            email_service.send_welcome_email(user.email, user.full_name, tenant.name)
-        except Exception as e:
-            print(f"Warning: Failed to send welcome email to {user.email}: {e}")
-            # Continue with signup even if email fails
+        if user.email:
+            try:
+                email_service.send_welcome_email(user.email, user.full_name, tenant.name)
+            except Exception as e:
+                print(f"Warning: Failed to send welcome email to {user.email}: {e}")
+                # Continue with signup even if email fails
 
+        return db_user
+
+    def create_user_for_invite(self, db: Session, user: schemas.UserCreateInvite) -> models.User:
+        """Create user for invite - email is optional."""
+        tenant = self.get_tenant_by_name(db, user.tenant_name)
+        if not tenant:
+            raise ValueError(f"Tenant '{user.tenant_name}' not found")
+        
+        # Check if email is provided and if user already exists
+        if user.email:
+            existing_user = self.get_user_by_email(db, user.email)
+            if existing_user:
+                raise ValueError("User with this email already exists")
+        
+        hashed_password = get_password_hash(user.password)
+        
+        # Create user with or without email
+        db_user = models.User(
+            email=user.email,  # Can be None now that email is nullable
+            full_name=user.full_name,
+            hashed_password=hashed_password,
+            role=schemas.UserRole.USER,
+            tenant_id=tenant.id,
+            tenant_name=tenant.name
+        )
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        
+        # Only send welcome email if email is provided
+        if user.email:
+            try:
+                email_service.send_welcome_email(user.email, user.full_name, tenant.name)
+            except Exception as e:
+                print(f"Warning: Failed to send welcome email to {user.email}: {e}")
+        
         return db_user
 
     def authenticate_user(self, db: Session, email: str, password: str) -> Optional[models.User]:

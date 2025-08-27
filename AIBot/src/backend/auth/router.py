@@ -49,7 +49,7 @@ def login_access_token(
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        user.email, expires_delta=access_token_expires
+        user.email or str(user.id), expires_delta=access_token_expires, user_id=user.id
     )
     return {
         "access_token": access_token,
@@ -275,7 +275,9 @@ def otp_verify_signup(req: schemas.OTPVerifySignupIn, db: Session = Depends(get_
         user_management_service.link_phone_to_user(db, user, phone_number, verified=True)
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(user.email, expires_delta=access_token_expires)
+    access_token = create_access_token(
+        user.email or str(user.id), expires_delta=access_token_expires, user_id=user.id
+    )
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -304,7 +306,9 @@ def otp_verify_login(req: schemas.OTPVerifyLoginIn, db: Session = Depends(get_ma
         raise HTTPException(status_code=400, detail="Account not found")
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(user.email, expires_delta=access_token_expires)
+    access_token = create_access_token(
+        user.email or str(user.id), expires_delta=access_token_expires, user_id=user.id
+    )
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -323,7 +327,9 @@ def login_by_identifier(
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect credentials")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(user.email, expires_delta=access_token_expires)
+    access_token = create_access_token(
+        user.email or str(user.id), expires_delta=access_token_expires, user_id=user.id
+    )
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -360,3 +366,56 @@ def reset_password_with_otp(
     user_management_service.change_user_password(db, user, req.new_password)
     
     return {"message": "Password reset successfully"}
+
+
+@router.post("/invite-member", response_model=schemas.InviteMemberResponse)
+def invite_member(
+    req: schemas.InviteMemberIn,
+    db: Session = Depends(get_master_db),
+    current_user: models.User = Depends(get_current_active_admin),
+):
+    """Invite a new member by creating account and sending SMS with temporary password."""
+    # Generate temporary password (8 characters: letters + numbers)
+    temp_password = secrets.token_urlsafe(6)[:8]
+    
+    # Create user data (email is optional, phone is mandatory)
+    user_data = schemas.UserCreateInvite(
+        email=req.email,  # Can be None
+        password=temp_password,
+        full_name=req.full_name,
+        tenant_name=req.tenant_name,
+    )
+    
+    # Create user
+    try:
+        user = user_management_service.create_user_for_invite(db=db, user=user_data)
+        
+        # Add phone number if provided
+        if req.phone_number:
+            user_contact = models.UserContact(
+                user_id=user.id,
+                phone_number=req.phone_number,
+                is_verified=True  # Auto-verify for invited users
+            )
+            db.add(user_contact)
+            db.commit()
+        
+        # Update role if specified
+        if req.role:
+            user.role = req.role
+            db.commit()
+            db.refresh(user)
+        
+        # Prepare SMS message for Flutter to send
+        sms_message = f"Welcome to {settings.PROJECT_NAME}! Your account has been created. Login with phone: {req.phone_number}, password: {temp_password}. Please change your password after first login."
+        
+        return schemas.InviteMemberResponse(
+            message="Member invited successfully",
+            user_id=user.id,
+            temporary_password=temp_password,
+            phone_number=req.phone_number,
+            sms_message=sms_message
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to create user: {str(e)}")

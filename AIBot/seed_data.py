@@ -94,106 +94,175 @@ def create_users():
     db = DefaultSessionLocal()
     
     try:
-        # Tenant 1 users (using valid tenant ID)
+        # Tenant 1 users (mix of email and phone-only users)
         tenant1_users = [
-            {"email": "admin1@acme.com", "password": "Admin123!", "full_name": "Alice Admin", "role": auth_schemas.UserRole.ADMIN, "tenant_name": "acme_corp"},
-            {"email": "super1@acme.com", "password": "Super123!", "full_name": "Bob SuperUser", "role": auth_schemas.UserRole.SUPER_USER, "tenant_name": "acme_corp"},
-            {"email": "user1@acme.com", "password": "User123!", "full_name": "Carol User", "role": auth_schemas.UserRole.USER, "tenant_name": "acme_corp"},
-            {"email": "user2@acme.com", "password": "User123!", "full_name": "David User", "role": auth_schemas.UserRole.USER, "tenant_name": "acme_corp"},
-            {"email": "user3@acme.com", "password": "User123!", "full_name": "Eve User", "role": auth_schemas.UserRole.USER, "tenant_name": "acme_corp"},
+            {"email": "admin1@acme.com", "password": "Admin123!", "full_name": "Alice Admin", "role": auth_schemas.UserRole.ADMIN, "tenant_name": "acme_corp", "phone": "+1234567890"},
+            {"email": "super1@acme.com", "password": "Super123!", "full_name": "Bob SuperUser", "role": auth_schemas.UserRole.SUPER_USER, "tenant_name": "acme_corp", "phone": "+1234567891"},
+            {"email": "user1@acme.com", "password": "User123!", "full_name": "Carol User", "role": auth_schemas.UserRole.USER, "tenant_name": "acme_corp", "phone": "+1234567892"},
+            {"email": None, "password": "User123!", "full_name": "David User", "role": auth_schemas.UserRole.USER, "tenant_name": "acme_corp", "phone": "+1234567893"},
+            {"email": None, "password": "User123!", "full_name": "Eve User", "role": auth_schemas.UserRole.USER, "tenant_name": "acme_corp", "phone": "+1234567894"},
         ]
         
-        # Tenant 2 users (using valid tenant ID)
+        # Tenant 2 users (mix of email and phone-only users)
         tenant2_users = [
-            {"email": "admin2@techstartup.com", "password": "Admin123!", "full_name": "Frank Admin", "role": auth_schemas.UserRole.ADMIN, "tenant_name": "tech_startup"},
-            {"email": "super2@techstartup.com", "password": "Super123!", "full_name": "Grace SuperUser", "role": auth_schemas.UserRole.SUPER_USER, "tenant_name": "tech_startup"},
-            {"email": "user4@techstartup.com", "password": "User123!", "full_name": "Henry User", "role": auth_schemas.UserRole.USER, "tenant_name": "tech_startup"},
-            {"email": "user5@techstartup.com", "password": "User123!", "full_name": "Iris User", "role": auth_schemas.UserRole.USER, "tenant_name": "tech_startup"},
-            {"email": "user6@techstartup.com", "password": "User123!", "full_name": "Jack User", "role": auth_schemas.UserRole.USER, "tenant_name": "tech_startup"},
+            {"email": "admin2@techstartup.com", "password": "Admin123!", "full_name": "Frank Admin", "role": auth_schemas.UserRole.ADMIN, "tenant_name": "tech_startup", "phone": "+1234567895"},
+            {"email": "super2@techstartup.com", "password": "Super123!", "full_name": "Grace SuperUser", "role": auth_schemas.UserRole.SUPER_USER, "tenant_name": "tech_startup", "phone": "+1234567896"},
+            {"email": None, "password": "User123!", "full_name": "Henry User", "role": auth_schemas.UserRole.USER, "tenant_name": "tech_startup", "phone": "+1234567897"},
+            {"email": "user5@techstartup.com", "password": "User123!", "full_name": "Iris User", "role": auth_schemas.UserRole.USER, "tenant_name": "tech_startup", "phone": "+1234567898"},
+            {"email": None, "password": "User123!", "full_name": "Jack User", "role": auth_schemas.UserRole.USER, "tenant_name": "tech_startup", "phone": "+1234567899"},
         ]
-        # Tenant 3 users: HippoCampus (1 admin, 1 super user, 5 users)
+        # Tenant 3 users: HippoCampus (mix of email and phone-only users)
         tenant3_users = [
-            {"email": "admin@hippocampus.edu", "password": "Admin123!", "full_name": "Hannah Admin", "role": auth_schemas.UserRole.ADMIN, "tenant_name": "hippocampus"},
-            {"email": "super@hippocampus.edu", "password": "Super123!", "full_name": "Ian SuperUser", "role": auth_schemas.UserRole.SUPER_USER, "tenant_name": "hippocampus"},
-            {"email": "user1@hippocampus.edu", "password": "User123!", "full_name": "Joy User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus"},
-            {"email": "user2@hippocampus.edu", "password": "User123!", "full_name": "Kyle User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus"},
-            {"email": "user3@hippocampus.edu", "password": "User123!", "full_name": "Liam User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus"},
-            {"email": "user4@hippocampus.edu", "password": "User123!", "full_name": "Mia User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus"},
-            {"email": "user5@hippocampus.edu", "password": "User123!", "full_name": "Noah User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus"},
+            {"email": "admin@hippocampus.edu", "password": "Admin123!", "full_name": "Hannah Admin", "role": auth_schemas.UserRole.ADMIN, "tenant_name": "hippocampus", "phone": "+1234567800"},
+            {"email": "super@hippocampus.edu", "password": "Super123!", "full_name": "Ian SuperUser", "role": auth_schemas.UserRole.SUPER_USER, "tenant_name": "hippocampus", "phone": "+1234567801"},
+            {"email": None, "password": "User123!", "full_name": "Joy User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus", "phone": "+1234567802"},
+            {"email": "user2@hippocampus.edu", "password": "User123!", "full_name": "Kyle User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus", "phone": "+1234567803"},
+            {"email": None, "password": "User123!", "full_name": "Liam User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus", "phone": "+1234567804"},
+            {"email": None, "password": "User123!", "full_name": "Mia User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus", "phone": "+1234567805"},
+            {"email": "user5@hippocampus.edu", "password": "User123!", "full_name": "Noah User", "role": auth_schemas.UserRole.USER, "tenant_name": "hippocampus", "phone": "+1234567806"},
         ]
 
         created_users = {"acme_corp": [], "tech_startup": [], "hippocampus": []}
         
         # Create tenant1 users
         for user_data in tenant1_users:
-            user_create = auth_schemas.UserCreate(
-                email=user_data["email"],
-                password=user_data["password"],
-                full_name=user_data["full_name"],
-                tenant_name=user_data["tenant_name"]
-            )
-            user = user_management_service.create_user(db, user_create)
+            # Use appropriate method and schema based on whether email is provided
+            if user_data["email"] is not None:
+                user_create = auth_schemas.UserCreate(
+                    email=user_data["email"],
+                    password=user_data["password"],
+                    full_name=user_data["full_name"],
+                    tenant_name=user_data["tenant_name"]
+                )
+                user = user_management_service.create_user(db, user_create)
+            else:
+                user_create = auth_schemas.UserCreateInvite(
+                    email=None,
+                    password=user_data["password"],
+                    full_name=user_data["full_name"],
+                    tenant_name=user_data["tenant_name"]
+                )
+                user = user_management_service.create_user_for_invite(db, user_create)
             # Update role
             user.role = user_data["role"]
             db.commit()
+            
+            # Create phone contact for the user
+            from src.backend.auth.models import UserContact
+            user_contact = UserContact(
+                user_id=user.id,
+                phone_number=user_data["phone"],
+                is_verified=True  # Mark as verified for seed data
+            )
+            db.add(user_contact)
+            db.commit()
             db.refresh(user)  # Refresh to ensure object is bound to session
+            
             # Store user data as dict to avoid session issues
             user_dict = {
                 "id": user.id,
                 "email": user.email,
                 "full_name": user.full_name,
                 "role": user.role,
-                "tenant_name": user.tenant_name
+                "tenant_name": user.tenant_name,
+                "phone": user_data["phone"]
             }
             created_users["acme_corp"].append(user_dict)
-            print(f"Created user: {user.email} ({user.role.value}) for acme_corp")
+            contact_info = user.email if user.email else user_data["phone"]
+            print(f"Created user: {contact_info} ({user.role.value}) for acme_corp")
         
         # Create tenant2 users
         for user_data in tenant2_users:
-            user_create = auth_schemas.UserCreate(
-                email=user_data["email"],
-                password=user_data["password"],
-                full_name=user_data["full_name"],
-                tenant_name=user_data["tenant_name"]
-            )
-            user = user_management_service.create_user(db, user_create)
+            # Use appropriate method and schema based on whether email is provided
+            if user_data["email"] is not None:
+                user_create = auth_schemas.UserCreate(
+                    email=user_data["email"],
+                    password=user_data["password"],
+                    full_name=user_data["full_name"],
+                    tenant_name=user_data["tenant_name"]
+                )
+                user = user_management_service.create_user(db, user_create)
+            else:
+                user_create = auth_schemas.UserCreateInvite(
+                    email=None,
+                    password=user_data["password"],
+                    full_name=user_data["full_name"],
+                    tenant_name=user_data["tenant_name"]
+                )
+                user = user_management_service.create_user_for_invite(db, user_create)
             # Update role
             user.role = user_data["role"]
             db.commit()
+            
+            # Create phone contact for the user
+            from src.backend.auth.models import UserContact
+            user_contact = UserContact(
+                user_id=user.id,
+                phone_number=user_data["phone"],
+                is_verified=True  # Mark as verified for seed data
+            )
+            db.add(user_contact)
+            db.commit()
             db.refresh(user)  # Refresh to ensure object is bound to session
+            
             # Store user data as dict to avoid session issues
             user_dict = {
                 "id": user.id,
                 "email": user.email,
                 "full_name": user.full_name,
                 "role": user.role,
-                "tenant_name": user.tenant_name
+                "tenant_name": user.tenant_name,
+                "phone": user_data["phone"]
             }
             created_users["tech_startup"].append(user_dict)
-            print(f"Created user: {user.email} ({user.role.value}) for tech_startup")
+            contact_info = user.email if user.email else user_data["phone"]
+            print(f"Created user: {contact_info} ({user.role.value}) for tech_startup")
         
         # Create tenant3 users (HippoCampus)
         for user_data in tenant3_users:
-            user_create = auth_schemas.UserCreate(
-                email=user_data["email"],
-                password=user_data["password"],
-                full_name=user_data["full_name"],
-                tenant_name=user_data["tenant_name"]
-            )
-            user = user_management_service.create_user(db, user_create)
+            # Use appropriate method and schema based on whether email is provided
+            if user_data["email"] is not None:
+                user_create = auth_schemas.UserCreate(
+                    email=user_data["email"],
+                    password=user_data["password"],
+                    full_name=user_data["full_name"],
+                    tenant_name=user_data["tenant_name"]
+                )
+                user = user_management_service.create_user(db, user_create)
+            else:
+                user_create = auth_schemas.UserCreateInvite(
+                    email=None,
+                    password=user_data["password"],
+                    full_name=user_data["full_name"],
+                    tenant_name=user_data["tenant_name"]
+                )
+                user = user_management_service.create_user_for_invite(db, user_create)
             # Update role
             user.role = user_data["role"]
             db.commit()
+            
+            # Create phone contact for the user
+            from src.backend.auth.models import UserContact
+            user_contact = UserContact(
+                user_id=user.id,
+                phone_number=user_data["phone"],
+                is_verified=True  # Mark as verified for seed data
+            )
+            db.add(user_contact)
+            db.commit()
             db.refresh(user)
+            
             user_dict = {
                 "id": user.id,
                 "email": user.email,
                 "full_name": user.full_name,
                 "role": user.role,
-                "tenant_name": user.tenant_name
+                "tenant_name": user.tenant_name,
+                "phone": user_data["phone"]
             }
             created_users["hippocampus"].append(user_dict)
-            print(f"Created user: {user.email} ({user.role.value}) for hippocampus")
+            contact_info = user.email if user.email else user_data["phone"]
+            print(f"Created user: {contact_info} ({user.role.value}) for hippocampus")
 
         return created_users
         
@@ -323,6 +392,9 @@ def cleanup_database():
     # Clean default database
     db = DefaultSessionLocal()
     try:
+        # Delete user contacts first (foreign key dependency)
+        from src.backend.auth.models import UserContact
+        db.query(UserContact).delete()
         # Delete users (this will cascade to other related data)
         db.query(auth_models.User).delete()
         db.commit()
@@ -415,7 +487,17 @@ def main():
     print("  Acme Corp SuperUser: super1@acme.com / Super123!")
     print("  Tech Startup Admin: admin2@techstartup.com / Admin123!")
     print("  Tech Startup SuperUser: super2@techstartup.com / Super123!")
-    print("  Regular users: user[1-6]@[acme.com|techstartup.com] / User123!")
+    print("  HippoCampus Admin: admin@hippocampus.edu / Admin123!")
+    print("  HippoCampus SuperUser: super@hippocampus.edu / Super123!")
+    print("\n📱 Phone-only users (use phone for login):")
+    print("  David User: +1234567893 / User123! (acme_corp)")
+    print("  Eve User: +1234567894 / User123! (acme_corp)")
+    print("  Henry User: +1234567897 / User123! (tech_startup)")
+    print("  Jack User: +1234567899 / User123! (tech_startup)")
+    print("  Joy User: +1234567802 / User123! (hippocampus)")
+    print("  Liam User: +1234567804 / User123! (hippocampus)")
+    print("  Mia User: +1234567805 / User123! (hippocampus)")
+    print("\n📧 Mixed users have both email and phone numbers for testing")
 
 if __name__ == "__main__":
     main()

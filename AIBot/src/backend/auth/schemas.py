@@ -30,11 +30,18 @@ class Tenant(TenantBase):
 
 
 class UserBase(BaseModel):
-    email: EmailStr
+    email: EmailStr | None = None
     full_name: str | None = None
 
 
 class UserCreate(UserBase):
+    password: str = Field(..., min_length=8)
+    tenant_name: str
+
+
+class UserCreateInvite(BaseModel):
+    email: EmailStr | None = None
+    full_name: str
     password: str = Field(..., min_length=8)
     tenant_name: str
 
@@ -68,6 +75,7 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: str | None = None
+    user_id: int | None = None
 
 
 class Msg(BaseModel):
@@ -152,9 +160,17 @@ class LoginByIdentifierRequest(BaseModel):
 class InviteMemberIn(BaseModel):
     tenant_name: str
     full_name: str
+    phone_number: str  # Required for SMS
     email: EmailStr | None = None
-    phone_number: str | None = None
     role: UserRole | None = None
+
+
+class InviteMemberResponse(BaseModel):
+    message: str
+    user_id: int
+    temporary_password: str
+    phone_number: str
+    sms_message: str
 
 
 class OTPResetPasswordIn(BaseModel):

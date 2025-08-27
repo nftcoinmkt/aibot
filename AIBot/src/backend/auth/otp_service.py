@@ -126,6 +126,49 @@ class MessageCentralProvider:
             print(f"[SMS] Validation error: {e}")
             return {"success": False, "error": str(e)}
 
+    def send_sms_message(self, phone_number: str, message: str) -> Dict[str, Any]:
+        """Send regular SMS message via MessageCentral API."""
+        if not self.auth_token:
+            print(f"[SMS] DEV MODE - Message sent to {phone_number}: {message}")
+            return {"success": True, "message_id": "dev_msg_123"}
+        
+        # Clean phone number
+        clean_number = phone_number.replace("+", "").replace("-", "").replace(" ", "")
+        if clean_number.startswith("91"):
+            clean_number = clean_number[2:]
+        
+        # Correct endpoint for SMS
+        url = f"{self.base_url}/verification/v3/send"
+        params = {
+            "countryCode": "91",
+            "flowType": "SMS",
+            "type": "SMS",
+            "messageType": "TRANSACTIONAL",
+            "mobileNumber": clean_number,
+            "senderId": "UTOMOB",  # Use predefined sender ID
+            "message": message
+        }
+        
+        headers = {"authToken": self.auth_token}  # Add auth header
+        
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.post(url, params=params, headers=headers)
+                
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data.get("responseCode") == 200:
+                        print(f"[SMS] Message sent to {phone_number}")
+                        return {"success": True, "data": data}
+                
+                print(f"[SMS] API error: {resp.status_code}")
+                print(f"[SMS] Response: {resp.text}")
+                return {"success": False, "error": f"API error: {resp.status_code}"}
+                
+        except Exception as e:
+            print(f"[SMS] Message send error: {e}")
+            return {"success": False, "error": str(e)}
+
 
 class OTPService:
     """Unified OTP service - SMS via MessageCentral, Email via custom generation."""

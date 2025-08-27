@@ -327,6 +327,40 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> inviteMember({
+    required String tenantName,
+    required String fullName,
+    required String phoneNumber,
+    String? email,
+    String? role,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/invite-member'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $_userToken',
+      },
+      body: jsonEncode({
+        'tenant_name': tenantName,
+        'full_name': fullName,
+        'phone_number': phoneNumber,
+        if (email != null) 'email': email,
+        if (role != null) 'role': role,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      String message = 'Failed to invite member';
+      try {
+        final data = jsonDecode(response.body);
+        message = data['detail'] ?? data['msg'] ?? message;
+      } catch (_) {}
+      throw Exception(message);
+    }
+  }
+
   // A placeholder for the user's token. In a real app, you'd store and retrieve this securely.
   String? get userToken => _userToken;
 

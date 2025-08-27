@@ -27,12 +27,20 @@ async def get_current_user_from_token(token: str) -> User:
     
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        email: str = payload.get("sub")
-        print(f"📧 Extracted email from token: {email}")
-        if email is None:
-            print("❌ No email found in token")
+        # Support both email and user_id in JWT tokens
+        sub = payload.get("sub")
+        user_id = payload.get("user_id")
+        
+        print(f"📧 Extracted sub from token: {sub}")
+        print(f"🆔 Extracted user_id from token: {user_id}")
+        
+        if user_id:
+            token_data = TokenData(user_id=user_id)
+        elif sub:
+            token_data = TokenData(email=sub)
+        else:
+            print("❌ No identifier found in token")
             raise credentials_exception
-        token_data = TokenData(email=email)
         print(f"✅ Token data created successfully")
     except JWTError as e:
         print(f"❌ JWT decode error: {e}")
@@ -43,11 +51,20 @@ async def get_current_user_from_token(token: str) -> User:
     db = next(db_generator)
     
     try:
-        user = db.query(User).filter(User.email == token_data.email).first()
+        # Try to get user by user_id first, then by email
+        if token_data.user_id:
+            user = db.query(User).filter(User.id == token_data.user_id).first()
+            print(f"🔍 Looking up user by ID: {token_data.user_id}")
+        elif token_data.email:
+            user = db.query(User).filter(User.email == token_data.email).first()
+            print(f"🔍 Looking up user by email: {token_data.email}")
+        else:
+            user = None
+            
         if user is None:
-            print(f"❌ User not found for email: {token_data.email}")
+            print(f"❌ User not found for identifier: {token_data.user_id or token_data.email}")
             raise credentials_exception
-        print(f"✅ User found: {user.email} (ID: {user.id})")
+        print(f"✅ User found: {user.email or f'ID:{user.id}'} (ID: {user.id})")
         return user
     finally:
         db.close()

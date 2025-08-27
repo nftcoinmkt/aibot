@@ -28,14 +28,28 @@ class AuthenticationService:
             payload = jwt.decode(
                 token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
             )
-            token_data = schemas.TokenData(email=payload.get("sub"))
+            # Support both email and user_id in JWT tokens
+            sub = payload.get("sub")
+            user_id = payload.get("user_id")
+            
+            if user_id:
+                token_data = schemas.TokenData(user_id=user_id)
+            else:
+                token_data = schemas.TokenData(email=sub)
         except (JWTError, ValidationError):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Could not validate credentials",
             )
 
-        user = user_management_service.get_user_by_email(db=db, email=token_data.email)
+        # Try to get user by user_id first, then by email
+        if token_data.user_id:
+            user = user_management_service.get_user_by_id(db=db, user_id=token_data.user_id)
+        elif token_data.email:
+            user = user_management_service.get_user_by_email(db=db, email=token_data.email)
+        else:
+            user = None
+            
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
