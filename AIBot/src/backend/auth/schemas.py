@@ -116,6 +116,7 @@ class OtpPurpose(str, Enum):
     signup = "signup"
     login = "login"
     invite = "invite"
+    reset_password = "reset_password"
 
 
 class OTPRequestIn(BaseModel):
@@ -154,3 +155,10 @@ class InviteMemberIn(BaseModel):
     email: EmailStr | None = None
     phone_number: str | None = None
     role: UserRole | None = None
+
+
+class OTPResetPasswordIn(BaseModel):
+    contact_type: ContactType
+    contact: str
+    code: str
+    new_password: str = Field(..., min_length=8)

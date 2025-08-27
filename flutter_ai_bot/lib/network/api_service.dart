@@ -300,6 +300,33 @@ class ApiService {
     }
   }
 
+  Future<void> resetPasswordWithOtp({
+    required String contactType, // 'email' or 'phone'
+    required String contact,
+    required String code,
+    required String newPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/otp/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'contact_type': contactType,
+        'contact': contact,
+        'code': code,
+        'new_password': newPassword,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      String message = 'Failed to reset password';
+      try {
+        final data = jsonDecode(response.body);
+        message = data['detail'] ?? data['msg'] ?? message;
+      } catch (_) {}
+      throw Exception(message);
+    }
+  }
+
   // A placeholder for the user's token. In a real app, you'd store and retrieve this securely.
   String? get userToken => _userToken;
 

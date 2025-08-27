@@ -330,3 +330,33 @@ def login_by_identifier(
         "user_id": user.id,
         "tenant_name": user.tenant_name,
     }
+
+
+@router.post("/otp/reset-password")
+def reset_password_with_otp(
+    req: schemas.OTPResetPasswordIn,
+    db: Session = Depends(get_master_db),
+):
+    """Reset password using OTP verification."""
+    # Verify OTP
+    otp_request = otp_service.verify_otp(
+        db,
+        contact_type=req.contact_type,
+        contact=req.contact,
+        purpose=schemas.OtpPurpose.reset_password,
+        code=req.code,
+    )
+    
+    # Find user by contact
+    if req.contact_type == schemas.ContactType.email:
+        user = user_management_service.get_user_by_email(db, req.contact)
+    else:
+        user = user_management_service.get_user_by_phone(db, req.contact)
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="User not found")
+    
+    # Update password
+    user_management_service.change_user_password(db, user, req.new_password)
+    
+    return {"message": "Password reset successfully"}
