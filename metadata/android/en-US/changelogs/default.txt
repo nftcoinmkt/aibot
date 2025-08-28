@@ -1,0 +1,14 @@
+🤖 AI Bot Beta Release
+
+✨ New Features:
+- Enhanced AI chat functionality
+- Improved user authentication
+- Better file and image handling
+- Optimized performance
+
+🐛 Bug Fixes:
+- Fixed login issues
+- Improved app stability
+- Enhanced error handling
+
+📱 This is a beta release for testing purposes. Please report any issues you encounter.
