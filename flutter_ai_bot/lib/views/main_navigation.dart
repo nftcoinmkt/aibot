@@ -97,14 +97,14 @@ class _MainNavigationState extends State<MainNavigation> {
           children: [
             Icon(
               icon,
-              color: isSelected ? const Color(0xFF25D366) : Colors.grey,
+              color: isSelected ? const Color(0xff0077B6) : Colors.grey, // Primary mid blue for selected tab
               size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? const Color(0xFF25D366) : Colors.grey,
+                color: isSelected ? const Color(0xff0077B6) : Colors.grey, // Primary mid blue for selected tab text
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               ),

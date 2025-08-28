@@ -17,7 +17,7 @@ class _SettingsViewState extends State<SettingsView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF25D366),
+        backgroundColor: const Color(0xff023E8A), // Primary deep blue for app bar
         elevation: 0,
         title: const Text(
           'Settings',
@@ -65,12 +65,12 @@ class _SettingsViewState extends State<SettingsView> {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: const Color(0xFF25D366).withOpacity(0.1),
+              color: const Color(0xff48CAE4).withOpacity(0.2), // Soft blue background
               borderRadius: BorderRadius.circular(30),
             ),
             child: const Icon(
               CupertinoIcons.person_circle,
-              color: Color(0xFF25D366),
+              color: Color(0xff48CAE4), // Soft blue for profile icon
               size: 40,
             ),
           ),
@@ -154,7 +154,7 @@ class _SettingsViewState extends State<SettingsView> {
             trailing: Switch(
               value: false,
               onChanged: (value) {},
-              activeColor: const Color(0xFF25D366),
+              activeColor: const Color(0xff0077B6), // Primary mid blue for switch
             ),
           ),
         ],
@@ -242,12 +242,12 @@ class _SettingsViewState extends State<SettingsView> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: (textColor ?? const Color(0xFF25D366)).withOpacity(0.1),
+          color: (textColor ?? const Color(0xff48CAE4)).withOpacity(0.2), // Soft blue background
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           icon,
-          color: textColor ?? const Color(0xFF25D366),
+          color: textColor ?? const Color(0xff48CAE4), // Soft blue for icons
           size: 20,
         ),
       ),

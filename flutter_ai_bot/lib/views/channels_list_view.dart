@@ -57,7 +57,7 @@ class _ChannelsListViewState extends State<ChannelsListView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF25D366),
+        backgroundColor: const Color(0xff023E8A), // Primary deep blue for app bar
         elevation: 0,
         title: const Text(
           'Channels',
@@ -115,7 +115,7 @@ class _ChannelsListViewState extends State<ChannelsListView> {
                   _loadChannels();
                 }
               },
-              backgroundColor: const Color(0xFF25D366),
+              backgroundColor: const Color(0xff00B4D8), // Bright accent for floating action button
               child: const Icon(CupertinoIcons.add, color: Colors.white),
             )
           : null,
@@ -131,12 +131,12 @@ class _ChannelsListViewState extends State<ChannelsListView> {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: const Color(0xFF25D366).withOpacity(0.1),
+              color: const Color(0xff48CAE4).withOpacity(0.2), // Soft blue background
               borderRadius: BorderRadius.circular(40),
             ),
             child: const Icon(
               CupertinoIcons.chat_bubble_2,
-              color: Color(0xFF25D366),
+              color: Color(0xff48CAE4), // Soft blue for icon
               size: 40,
             ),
           ),
@@ -185,14 +185,14 @@ class _ChannelsListViewState extends State<ChannelsListView> {
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            color: const Color(0xFF25D366).withOpacity(0.1),
+            color: const Color(0xff48CAE4).withOpacity(0.2), // Soft blue background
             borderRadius: BorderRadius.circular(25),
           ),
           child: Center(
             child: Text(
               channel.name.isNotEmpty ? channel.name[0].toUpperCase() : '#',
               style: const TextStyle(
-                color: Color(0xFF25D366),
+                color: Color(0xff48CAE4), // Soft blue for channel avatar text
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),

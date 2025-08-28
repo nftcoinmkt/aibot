@@ -41,7 +41,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Password changed successfully'),
-          backgroundColor: Color(0xFF25D366),
+          backgroundColor: Color(0xff00B4D8), // Bright accent for success notifications
         ),
       );
       Navigator.of(context).pop();
@@ -63,7 +63,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Change Password'),
-        backgroundColor: const Color(0xFF25D366),
+        backgroundColor: const Color(0xff023E8A), // Primary deep blue for app bar
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -110,7 +110,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
+                    backgroundColor: const Color(0xff0077B6), // Primary mid blue for button
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),

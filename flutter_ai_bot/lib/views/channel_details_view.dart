@@ -152,11 +152,11 @@ class _ChannelDetailsViewState extends State<ChannelDetailsView> {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       leading: CircleAvatar(
-        backgroundColor: const Color(0xFF25D366).withOpacity(0.1),
+        backgroundColor: const Color(0xff48CAE4).withOpacity(0.2), // Soft blue background
         child: Text(
           user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : 'U',
           style: const TextStyle(
-            color: Color(0xFF25D366),
+            color: Color(0xff48CAE4), // Soft blue for avatar text
             fontWeight: FontWeight.bold,
           ),
         ),

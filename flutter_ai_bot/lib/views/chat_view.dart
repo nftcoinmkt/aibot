@@ -599,7 +599,7 @@ class _ChatViewState extends State<ChatView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF25D366),
+        backgroundColor: const Color(0xff023E8A), // Primary deep blue for navigation bar
         elevation: 0,
         leading: IconButton(
           icon: const Icon(CupertinoIcons.back, color: Colors.white),
@@ -709,7 +709,7 @@ class _ChatViewState extends State<ChatView> {
       ),
       body: Container(
         decoration: const BoxDecoration(
-          color: Color(0xFFE5DDD5),
+          color: Color(0xffCAF0F8), // Off-white with blue tint for chat canvas
         ),
         child: SafeArea(
           child: Column(
@@ -729,7 +729,7 @@ class _ChatViewState extends State<ChatView> {
                                 icon: const Icon(CupertinoIcons.clock, size: 16),
                                 label: const Text('Load Older Messages'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF075E54),
+                                  backgroundColor: const Color(0xff0077B6), // Primary mid blue for buttons
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
@@ -810,14 +810,14 @@ class _ChatViewState extends State<ChatView> {
               height: 30,
               margin: const EdgeInsets.only(right: 8, bottom: 4),
               decoration: BoxDecoration(
-                color: isAI ? Colors.blue.withOpacity(0.1) : const Color(0xFF25D366).withOpacity(0.1),
+                color: isAI ? const Color(0xff48CAE4).withOpacity(0.3) : const Color(0xff0096C7).withOpacity(0.2), // Soft blue for AI, secondary blue for users
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Center(
                 child: Icon(
                   isAI ? CupertinoIcons.sparkles : CupertinoIcons.person,
                   size: 16,
-                  color: isAI ? Colors.blue : const Color(0xFF25D366),
+                  color: isAI ? const Color(0xff48CAE4) : const Color(0xff0096C7), // Soft blue for AI, secondary blue for users
                 ),
               ),
             ),
@@ -877,9 +877,9 @@ class _ChatViewState extends State<ChatView> {
 
   Widget _buildMessageContent(ChatMessage message, bool isMe, {bool isAI = false}) {
     final bubbleColor = isMe
-        ? const Color(0xFFDCF8C6)
+        ? const Color(0xff90E0EF) // Light aqua for sender messages
         : isAI
-            ? const Color(0xFFE3F2FD)
+            ? const Color(0xffADE8F4) // Very light blue for AI messages
             : Colors.white;
     final bubbleRadius = BorderRadius.only(
       topLeft: const Radius.circular(18),
@@ -920,10 +920,10 @@ class _ChatViewState extends State<ChatView> {
                       _getSenderName(message, isMe, isAI),
                       style: TextStyle(
                         color: isAI
-                            ? Colors.blue[700]
+                            ? const Color(0xff0077B6) // Primary mid blue for AI
                             : isMe
-                                ? Colors.green[700]
-                                : const Color(0xFF25D366),
+                                ? const Color(0xff023E8A) // Primary deep blue for sender
+                                : const Color(0xff0096C7), // Secondary blue for others
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1286,7 +1286,7 @@ class _ChatViewState extends State<ChatView> {
                 width: 45,
                 height: 45,
                 decoration: BoxDecoration(
-                  color: (_controller.text.isNotEmpty || _selectedFile != null) ? const Color(0xFF25D366) : Colors.grey[400],
+                  color: (_controller.text.isNotEmpty || _selectedFile != null) ? const Color(0xff00B4D8) : Colors.grey[400], // Bright accent for send button
                   borderRadius: BorderRadius.circular(22.5),
                 ),
                 child: IconButton(
@@ -1344,7 +1344,7 @@ class _ChatViewState extends State<ChatView> {
               const Text('Message copied to clipboard'),
             ],
           ),
-          backgroundColor: const Color(0xFF25D366),
+          backgroundColor: const Color(0xff00B4D8), // Bright accent for notifications
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1375,7 +1375,7 @@ class _ChatViewState extends State<ChatView> {
               ),
             ),
             ListTile(
-              leading: const Icon(CupertinoIcons.doc_on_doc, color: Color(0xFF25D366)),
+              leading: const Icon(CupertinoIcons.doc_on_doc, color: Color(0xff0096C7)), // Secondary blue for icons
               title: const Text('Copy Message'),
               onTap: () {
                 Navigator.pop(context);

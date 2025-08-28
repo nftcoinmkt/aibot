@@ -78,7 +78,7 @@ class _DashboardViewState extends State<DashboardView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF25D366),
+        backgroundColor: const Color(0xff023E8A), // Primary deep blue for app bar
         elevation: 0,
         title: const Text(
           'Dashboard',
@@ -117,14 +117,14 @@ class _DashboardViewState extends State<DashboardView> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF25D366), Color(0xFF128C7E)],
+          colors: [Color(0xff0077B6), Color(0xff0096C7)], // Primary mid blue to secondary blue gradient
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF25D366).withOpacity(0.3),
+            color: const Color(0xff0077B6).withOpacity(0.3), // Primary mid blue shadow
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -360,12 +360,12 @@ class _DashboardViewState extends State<DashboardView> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF25D366).withOpacity(0.1),
+                  color: const Color(0xff48CAE4).withOpacity(0.2), // Soft blue background
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Icon(
                   CupertinoIcons.chat_bubble_2,
-                  color: Color(0xFF25D366),
+                  color: Color(0xff48CAE4), // Soft blue for chat icon
                   size: 20,
                 ),
               ),
@@ -480,12 +480,12 @@ class _DashboardViewState extends State<DashboardView> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFF25D366).withOpacity(0.1),
+              color: const Color(0xff48CAE4).withOpacity(0.2), // Soft blue background
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(
               icon,
-              color: const Color(0xFF25D366),
+              color: const Color(0xff48CAE4), // Soft blue for icons
               size: 20,
             ),
           ),

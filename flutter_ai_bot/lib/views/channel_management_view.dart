@@ -85,7 +85,7 @@ class _ChannelManagementViewState extends State<ChannelManagementView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF25D366),
+        backgroundColor: const Color(0xff023E8A), // Primary deep blue for app bar
         elevation: 0,
         leading: IconButton(
           icon: const Icon(CupertinoIcons.back, color: Colors.white),
@@ -165,14 +165,14 @@ class _ChannelManagementViewState extends State<ChannelManagementView> {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: const Color(0xFF25D366).withOpacity(0.1),
+                color: const Color(0xff48CAE4).withOpacity(0.2), // Soft blue background
                 borderRadius: BorderRadius.circular(25),
               ),
               child: Center(
                 child: Text(
                   channel.name.isNotEmpty ? channel.name[0].toUpperCase() : '#',
                   style: const TextStyle(
-                    color: Color(0xFF25D366),
+                    color: Color(0xff48CAE4), // Soft blue for channel avatar text
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),

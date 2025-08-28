@@ -139,7 +139,7 @@ class _LoginViewState extends State<LoginView> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('OTP sent. Please check your phone.'),
-            backgroundColor: Color(0xFF25D366),
+            backgroundColor: Color(0xff00B4D8), // Bright accent for notifications
           ),
         );
       }
@@ -243,21 +243,21 @@ class _LoginViewState extends State<LoginView> {
                   height: 100,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF25D366), Color(0xFF128C7E)],
+                      colors: [Color(0xff0077B6), Color(0xff0096C7)], // Primary mid blue to secondary blue gradient
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(50),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF25D366).withOpacity(0.3),
+                        color: const Color(0xff0077B6).withOpacity(0.3), // Primary mid blue shadow
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
                     ],
                   ),
                   child: const Icon(
-                    CupertinoIcons.chat_bubble_2_fill,
+                    CupertinoIcons.home,
                     color: Colors.white,
                     size: 50,
                   ),
@@ -350,7 +350,7 @@ class _LoginViewState extends State<LoginView> {
                           child: const Text(
                             'Forgot Password?',
                             style: TextStyle(
-                              color: Color(0xFF25D366),
+                              color: Color(0xff0096C7), // Secondary blue for links
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
@@ -368,7 +368,7 @@ class _LoginViewState extends State<LoginView> {
                           child: const Text(
                             'Use OTP instead',
                             style: TextStyle(
-                              color: Color(0xFF25D366),
+                              color: Color(0xff0096C7), // Secondary blue for OTP link
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
@@ -382,7 +382,7 @@ class _LoginViewState extends State<LoginView> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF25D366),
+                            backgroundColor: const Color(0xff0077B6), // Primary mid blue for main button
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
@@ -455,7 +455,7 @@ class _LoginViewState extends State<LoginView> {
                                   },
                             child: Text(
                               _retryAfter > 0 ? 'Resend in $_retryAfter s' : 'Request Code',
-                              style: const TextStyle(color: Color(0xFF25D366)),
+                              style: const TextStyle(color: Color(0xff0096C7)), // Secondary blue for resend text
                             ),
                           ),
                           TextButton(
@@ -478,7 +478,7 @@ class _LoginViewState extends State<LoginView> {
                         child: ElevatedButton(
                           onPressed: _isVerifyingOtp ? null : _verifyOtpLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF25D366),
+                            backgroundColor: const Color(0xff0077B6), // Primary mid blue for verify button
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
@@ -520,7 +520,7 @@ class _LoginViewState extends State<LoginView> {
                           child: const Text(
                             'Sign Up',
                             style: TextStyle(
-                              color: Color(0xFF25D366),
+                              color: Color(0xff0096C7), // Secondary blue for sign up text
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),

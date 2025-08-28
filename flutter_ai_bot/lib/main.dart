@@ -35,14 +35,16 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Flutter AI Bot',
       theme: ThemeData(
-        primaryColor: const Color(0xff075E54),
-        scaffoldBackgroundColor: const Color(0xffECE5DD),
+        primaryColor: const Color(0xff023E8A), // Primary deep blue
+        scaffoldBackgroundColor: const Color(0xffCAF0F8), // Off-white with blue tint
         colorScheme: ColorScheme.fromSwatch().copyWith(
-          secondary: const Color(0xff25D366),
-          background: const Color(0xffECE5DD),
+          primary: const Color(0xff023E8A), // Primary deep blue
+          secondary: const Color(0xff00B4D8), // Bright accent for CTAs
+          background: const Color(0xffCAF0F8), // Off-white with blue tint
+          surface: const Color(0xffADE8F4), // Very light blue for cards
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xff075E54),
+          backgroundColor: Color(0xff023E8A), // Primary deep blue for headers
           elevation: 0,
           titleTextStyle: TextStyle(
             color: Colors.white,
@@ -55,7 +57,7 @@ class _MyAppState extends State<MyApp> {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xff075E54),
+            backgroundColor: const Color(0xff0077B6), // Primary mid blue for main buttons
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
@@ -71,11 +73,11 @@ class _MyAppState extends State<MyApp> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xff075E54)),
+            borderSide: const BorderSide(color: Color(0xff48CAE4)), // Soft blue for input borders
           ),
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Color(0xff25D366),
+          backgroundColor: Color(0xff00B4D8), // Bright accent for floating actions
           foregroundColor: Colors.white,
         ),
         textTheme: const TextTheme(

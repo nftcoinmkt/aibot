@@ -47,7 +47,7 @@ class _ResetPasswordViewState extends State<ResetPasswordView> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Password has been reset. Please log in.'),
-          backgroundColor: Color(0xFF25D366),
+          backgroundColor: Color(0xff00B4D8), // Bright accent for success notifications
         ),
       );
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
@@ -69,7 +69,7 @@ class _ResetPasswordViewState extends State<ResetPasswordView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reset Password'),
-        backgroundColor: const Color(0xFF25D366),
+        backgroundColor: const Color(0xff023E8A), // Primary deep blue for app bar
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -115,7 +115,7 @@ class _ResetPasswordViewState extends State<ResetPasswordView> {
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
+                    backgroundColor: const Color(0xff0077B6), // Primary mid blue for button
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),

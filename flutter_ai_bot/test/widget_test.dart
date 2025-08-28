@@ -20,9 +20,9 @@ void main() {
 
   testWidgets('App has correct theme colors', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
-    
+
     final MaterialApp app = tester.widget(find.byType(MaterialApp));
-    expect(app.theme?.primaryColor, const Color(0xff075E54));
-    expect(app.theme?.scaffoldBackgroundColor, const Color(0xffECE5DD));
+    expect(app.theme?.primaryColor, const Color(0xff023E8A)); // Primary deep blue
+    expect(app.theme?.scaffoldBackgroundColor, const Color(0xffCAF0F8)); // Off-white with blue tint
   });
 }

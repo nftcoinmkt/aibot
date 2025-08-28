@@ -51,7 +51,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('OTP sent successfully. Please check your email/phone.'),
-            backgroundColor: Color(0xFF25D366),
+            backgroundColor: Color(0xff00B4D8), // Bright accent for notifications
           ),
         );
       } catch (e) {
@@ -89,7 +89,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Password reset successfully. Please login with your new password.'),
-            backgroundColor: Color(0xFF25D366),
+            backgroundColor: Color(0xff00B4D8), // Bright accent for success notifications
           ),
         );
         Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
@@ -116,7 +116,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reset Password'),
-        backgroundColor: const Color(0xFF25D366),
+        backgroundColor: const Color(0xff023E8A), // Primary deep blue for app bar
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -148,7 +148,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
               value: 'email',
               groupValue: _contactType,
               onChanged: (value) => setState(() => _contactType = value!),
-              activeColor: const Color(0xFF25D366),
+              activeColor: const Color(0xff0077B6), // Primary mid blue for radio buttons
             ),
           ),
           Expanded(
@@ -157,7 +157,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
               value: 'phone',
               groupValue: _contactType,
               onChanged: (value) => setState(() => _contactType = value!),
-              activeColor: const Color(0xFF25D366),
+              activeColor: const Color(0xff0077B6), // Primary mid blue for radio buttons
             ),
           ),
         ],
@@ -173,7 +173,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
             : ElevatedButton(
                 onPressed: _sendOtp,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF25D366),
+                  backgroundColor: const Color(0xff0077B6), // Primary mid blue for buttons
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -224,7 +224,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         child: ElevatedButton(
           onPressed: _isLoading ? null : _resetPassword,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF25D366),
+            backgroundColor: const Color(0xff0077B6), // Primary mid blue for reset button
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -245,7 +245,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         onPressed: () => setState(() => _otpSent = false),
         child: const Text(
           'Back to contact selection',
-          style: TextStyle(color: Color(0xFF25D366), fontWeight: FontWeight.w500),
+          style: TextStyle(color: Color(0xff0096C7), fontWeight: FontWeight.w500), // Secondary blue for back link
         ),
       ),
     ];

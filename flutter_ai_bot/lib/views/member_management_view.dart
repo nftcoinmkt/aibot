@@ -134,7 +134,7 @@ class _MemberManagementViewState extends State<MemberManagementView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF25D366),
+        backgroundColor: const Color(0xff023E8A), // Primary deep blue for app bar
         elevation: 0,
         leading: IconButton(
           icon: const Icon(CupertinoIcons.back, color: Colors.white),
@@ -186,7 +186,7 @@ class _MemberManagementViewState extends State<MemberManagementView> {
           children: [
             const Icon(
               CupertinoIcons.person_2_fill,
-              color: Color(0xFF25D366),
+              color: Color(0xff48CAE4), // Soft blue for section icon
               size: 20,
             ),
             const SizedBox(width: 8),
@@ -308,11 +308,11 @@ class _MemberManagementViewState extends State<MemberManagementView> {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       leading: CircleAvatar(
-        backgroundColor: const Color(0xFF25D366).withOpacity(0.1),
+        backgroundColor: const Color(0xff48CAE4).withOpacity(0.2), // Soft blue background
         child: Text(
           user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : 'U',
           style: const TextStyle(
-            color: Color(0xFF25D366),
+            color: Color(0xff48CAE4), // Soft blue for avatar text
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -344,7 +344,7 @@ class _MemberManagementViewState extends State<MemberManagementView> {
               onPressed: () => _addMember(user),
               icon: const Icon(
                 CupertinoIcons.add_circled,
-                color: Color(0xFF25D366),
+                color: Color(0xff00B4D8), // Bright accent for add action
               ),
             ),
     );
