@@ -54,6 +54,27 @@ jobs:
       working-directory: ./flutter_ai_bot
       run: flutter test || echo "No tests found, skipping..."
       
+    - name: Ensure Gradle wrapper uses 8.11.1
+      working-directory: ./flutter_ai_bot/android
+      shell: bash
+      run: |
+        set -e
+        TARGET="gradle/wrapper/gradle-wrapper.properties"
+        mkdir -p gradle/wrapper
+        if [ -f "$TARGET" ]; then
+          sed -i 's#^distributionUrl=.*#distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-all.zip#' "$TARGET"
+          echo "Updated $TARGET to Gradle 8.11.1"
+        else
+          cat > "$TARGET" << 'EOF'
+        distributionBase=GRADLE_USER_HOME
+        distributionPath=wrapper/dists
+        distributionUrl=https\://services.gradle.org/distributions/gradle-8.11.1-all.zip
+        zipStoreBase=GRADLE_USER_HOME
+        zipStorePath=wrapper/dists
+        EOF
+          echo "Created $TARGET with Gradle 8.11.1"
+        fi
+
     - name: Create Android keystore
       working-directory: ./flutter_ai_bot/android
       run: |
