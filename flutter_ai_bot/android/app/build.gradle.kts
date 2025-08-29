@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -22,10 +25,10 @@ android {
 
     signingConfigs {
         create("release") {
-            val keyProperties = java.util.Properties()
+            val keyProperties = Properties()
             val keyPropertiesFile = rootProject.file("key.properties")
             if (keyPropertiesFile.exists()) {
-                keyProperties.load(java.io.FileInputStream(keyPropertiesFile))
+                keyProperties.load(FileInputStream(keyPropertiesFile))
             }
 
             keyAlias = keyProperties["keyAlias"] as String?
