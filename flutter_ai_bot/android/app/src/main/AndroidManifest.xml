@@ -7,11 +7,18 @@
     <!-- Camera and storage permissions for image/file picker -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
-    
+
+    <!-- Microphone permission for voice input and audio processing -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Location permissions for location-based AI services -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <!-- For Android 11+ to launch external apps -->
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" 
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
     
     <application
