@@ -137,8 +137,12 @@ jobs:
         retention-days: 30
         
     - name: Create Google Play service account key
+      env:
+        SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
       run: |
-        printf '%s' "${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}" > service-account.json
+        cat <<EOF > service-account.json
+        $SERVICE_ACCOUNT_JSON
+        EOF
         
     - name: Upload to Google Play Store (Open Testing)
       uses: r0adkll/upload-google-play@v1.1.3
