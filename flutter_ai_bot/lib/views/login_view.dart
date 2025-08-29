@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../network/api_service.dart';
 import 'dart:async';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class LoginView extends StatefulWidget {
   final ApiService apiService;
@@ -239,27 +240,35 @@ class _LoginViewState extends State<LoginView> {
               const SizedBox(height: 60),
               Center(
                 child: Container(
-                  width: 100,
-                  height: 100,
+                  width: 150,
+                  height: 150,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xff0077B6), Color(0xff0096C7)], // Primary mid blue to secondary blue gradient
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(50),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xff0077B6).withOpacity(0.3), // Primary mid blue shadow
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(
-                    CupertinoIcons.home,
-                    color: Colors.white,
-                    size: 50,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'assets/Logo.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 150,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xff0077B6), Color(0xff0096C7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(
+                          Icons.chat_bubble_outline,
+                          color: Colors.white,
+                          size: 60,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
