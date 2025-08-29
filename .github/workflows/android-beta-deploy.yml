@@ -149,7 +149,6 @@ jobs:
         track: beta
         status: completed
         inAppUpdatePriority: 2
-        userFraction: 1.0
         whatsNewDirectory: metadata/android
         mappingFile: flutter_ai_bot/build/app/outputs/mapping/release/mapping.txt
         

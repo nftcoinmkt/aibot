@@ -7,8 +7,9 @@ plugins {
 
 android {
     namespace = "com.example.flutter_ai_bot"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Override to satisfy plugin requirements
+    compileSdk = 35
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
