@@ -1,4 +1,4 @@
-package com.example.flutter_ai_bot
+package com.hippocampus.brain
 
 import io.flutter.embedding.android.FlutterActivity
 
