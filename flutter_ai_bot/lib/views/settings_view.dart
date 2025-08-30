@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_ai_bot/network/api_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsView extends StatefulWidget {
   final ApiService apiService;
@@ -12,6 +13,17 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
+  void _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not launch $url'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -189,6 +201,13 @@ class _SettingsViewState extends State<SettingsView> {
             title: 'Help & Support',
             subtitle: 'Get help and contact support',
             onTap: () {},
+          ),
+          const Divider(height: 1),
+          _buildSettingsItem(
+            icon: CupertinoIcons.shield_lefthalf_fill,
+            title: 'Privacy Policy',
+            subtitle: 'Read our privacy policy',
+            onTap: () => _launchURL('https://hippocampus-8d4f4f.webflow.io/privacy'), // TODO: Replace with your actual privacy policy URL
           ),
           const Divider(height: 1),
           _buildSettingsItem(
