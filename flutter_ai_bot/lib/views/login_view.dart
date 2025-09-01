@@ -24,7 +24,7 @@ class _LoginViewState extends State<LoginView> {
   // OTP login state
   final _identifierController = TextEditingController();
   final _otpCodeController = TextEditingController();
-  bool _useOtpLogin = false;
+  bool _useOtpLogin = true;
   bool _isRequestingOtp = false;
   bool _isVerifyingOtp = false;
   int _retryAfter = 0;

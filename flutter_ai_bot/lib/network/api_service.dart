@@ -494,6 +494,34 @@ class ApiService {
     }
   }
 
+  Future<User?> getCurrentUser() async {
+    try {
+      final users = await getUsers();
+      if (users.isNotEmpty && _userId != null) {
+        // Find the current user by ID
+        final currentUser = users.firstWhere(
+          (user) => user.id == _userId,
+          orElse: () => users.first, // Fallback to first user if ID not found
+        );
+        return currentUser;
+      }
+      return null;
+    } catch (e) {
+      print('Failed to get current user: $e');
+      return null;
+    }
+  }
+
+  Future<bool> isCurrentUserAdmin() async {
+    try {
+      final currentUser = await getCurrentUser();
+      return currentUser?.role == 'admin' || currentUser?.role == 'super_user';
+    } catch (e) {
+      print('Failed to check admin status: $e');
+      return false;
+    }
+  }
+
   Future<List<ChannelMember>> getChannelMembers(int channelId) async {
     final response = await http.get(
       Uri.parse('$_baseUrl/channels/$channelId/members'),

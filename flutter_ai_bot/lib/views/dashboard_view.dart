@@ -20,6 +20,7 @@ class _DashboardViewState extends State<DashboardView> {
   String _welcomeMessage = '';
   List<Channel> _recentChannels = [];
   List<ChatMessage> _recentMessages = [];
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -29,6 +30,9 @@ class _DashboardViewState extends State<DashboardView> {
 
   Future<void> _loadUserData() async {
     try {
+      // Check admin status first
+      final isAdmin = await widget.apiService.isCurrentUserAdmin();
+
       // Load recent channels and messages
       final channels = await widget.apiService.getChannels();
       final recentChannels = channels.take(3).toList();
@@ -38,7 +42,7 @@ class _DashboardViewState extends State<DashboardView> {
         final users = await widget.apiService.getUsers();
         if (users.isNotEmpty) {
           widget.apiService.setCurrentTenantName(users.first.tenantName);
-          _currentUser = users.first;
+          _currentUser = await widget.apiService.getCurrentUser();
         }
       } catch (e) {
         // Non-fatal: continue without tenant
@@ -60,7 +64,8 @@ class _DashboardViewState extends State<DashboardView> {
       }
 
       setState(() {
-        _welcomeMessage = 'Welcome back!';
+        _isAdmin = isAdmin;
+        _welcomeMessage = isAdmin ? 'Welcome back, Admin!' : 'Welcome back!';
         _recentChannels = recentChannels;
         _recentMessages = recentMessages;
         _isLoading = false;
@@ -153,17 +158,41 @@ class _DashboardViewState extends State<DashboardView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _welcomeMessage,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          _welcomeMessage,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (_isAdmin) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'ADMIN',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Ready to collaborate with your team?',
+                      _isAdmin
+                        ? 'Manage your team and channels'
+                        : 'Ready to collaborate with your team?',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.9),
                         fontSize: 16,

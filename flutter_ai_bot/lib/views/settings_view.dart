@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_ai_bot/network/api_service.dart';
+import 'package:flutter_ai_bot/utils/role_manager.dart';
+import 'package:flutter_ai_bot/models/user_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsView extends StatefulWidget {
@@ -9,10 +11,43 @@ class SettingsView extends StatefulWidget {
   const SettingsView({super.key, required this.apiService});
 
   @override
-  _SettingsViewState createState() => _SettingsViewState();
+  SettingsViewState createState() => SettingsViewState();
 }
 
-class _SettingsViewState extends State<SettingsView> {
+class SettingsViewState extends State<SettingsView> {
+  // Settings values
+  bool _darkModeEnabled = false;
+  String _selectedLanguage = 'English';
+  bool _notificationsEnabled = true;
+  bool _dataUsageOptimized = false;
+  bool _backupEnabled = true;
+  User? _currentUser;
+  bool _isLoading = true;
+  Map<String, bool> _settingsVisibility = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = await widget.apiService.getCurrentUser();
+      setState(() {
+        _currentUser = user;
+        _settingsVisibility = RoleManager.getSettingsVisibility(user);
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
+      setState(() {
+        _isLoading = false;
+        // Set default visibility for non-authenticated users
+        _settingsVisibility = RoleManager.getSettingsVisibility(null);
+      });
+    }
+  }
   void _launchURL(String url) async {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri)) {
@@ -24,6 +59,60 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
+  // Method to toggle visibility of settings elements
+  void _toggleVisibility(String key) {
+    setState(() {
+      _settingsVisibility[key] = !(_settingsVisibility[key] ?? false);
+    });
+  }
+
+  // Method to check if an element should be visible
+  bool _isVisible(String key) {
+    return _settingsVisibility[key] ?? false;
+  }
+
+  // Method to show visibility controls (for demo purposes)
+  void _showVisibilityControls() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Control Settings Visibility',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView(
+                children: _settingsVisibility.keys.map((key) {
+                  return SwitchListTile(
+                    title: Text(key.replaceAll('_', ' ').toUpperCase()),
+                    value: _settingsVisibility[key] ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _settingsVisibility[key] = value;
+                      });
+                      Navigator.pop(context);
+                      setState(() {}); // Refresh the main view
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -31,29 +120,68 @@ class _SettingsViewState extends State<SettingsView> {
       appBar: AppBar(
         backgroundColor: const Color(0xff023E8A), // Primary deep blue for app bar
         elevation: 0,
-        title: const Text(
-          'Settings',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: false,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            _buildProfileSection(),
-            const SizedBox(height: 20),
-            _buildSettingsSection(),
-            const SizedBox(height: 20),
-            _buildAboutSection(),
+            const Text(
+              'Settings',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (RoleManager.isAdmin(_currentUser)) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'ADMIN',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
+        centerTitle: false,
+        actions: [
+          // Debug button to control visibility (remove in production)
+          if (RoleManager.isAdmin(_currentUser))
+            IconButton(
+              icon: const Icon(CupertinoIcons.eye, color: Colors.white),
+              onPressed: _showVisibilityControls,
+              tooltip: 'Control Visibility',
+            ),
+        ],
       ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_isVisible('profile_section')) ...[
+                    _buildProfileSection(),
+                    const SizedBox(height: 20),
+                  ],
+                  if (_isVisible('settings_section')) ...[
+                    _buildSettingsSection(),
+                    const SizedBox(height: 20),
+                  ],
+                  if (_isVisible('about_section')) ...[
+                    _buildAboutSection(),
+                  ],
+                ],
+              ),
+            ),
     );
   }
 
@@ -73,54 +201,185 @@ class _SettingsViewState extends State<SettingsView> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: const Color(0xff48CAE4).withOpacity(0.2), // Soft blue background
-              borderRadius: BorderRadius.circular(30),
+          if (_isVisible('profile_avatar'))
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: const Color(0xff48CAE4).withOpacity(0.2), // Soft blue background
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: const Icon(
+                CupertinoIcons.person_circle,
+                color: Color(0xff48CAE4), // Soft blue for profile icon
+                size: 40,
+              ),
             ),
-            child: const Icon(
-              CupertinoIcons.person_circle,
-              color: Color(0xff48CAE4), // Soft blue for profile icon
-              size: 40,
-            ),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
+          if (_isVisible('profile_avatar')) const SizedBox(width: 16),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'User Name',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
+                if (_isVisible('profile_name'))
+                  const Text(
+                    'User Name',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1F2937),
+                    ),
                   ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'user@example.com',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF6B7280),
+                if (_isVisible('profile_name') && _isVisible('profile_email'))
+                  const SizedBox(height: 4),
+                if (_isVisible('profile_email'))
+                  const Text(
+                    'user@example.com',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF6B7280),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
-          const Icon(
-            CupertinoIcons.chevron_right,
-            color: Color(0xFF9CA3AF),
-            size: 16,
-          ),
+          if (_isVisible('profile_edit_button'))
+            const Icon(
+              CupertinoIcons.chevron_right,
+              color: Color(0xFF9CA3AF),
+              size: 16,
+            ),
         ],
       ),
     );
   }
 
   Widget _buildSettingsSection() {
+    List<Widget> settingsItems = [];
+
+    if (_isVisible('notifications')) {
+      settingsItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.bell,
+        title: 'Notifications',
+        subtitle: 'Manage notification preferences',
+        onTap: () {},
+        trailing: Switch(
+          value: _notificationsEnabled,
+          onChanged: (value) {
+            setState(() {
+              _notificationsEnabled = value;
+            });
+          },
+          activeColor: const Color(0xff0077B6),
+        ),
+      ));
+    }
+
+    if (_isVisible('privacy_security')) {
+      if (settingsItems.isNotEmpty) settingsItems.add(const Divider(height: 1));
+      settingsItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.lock,
+        title: 'Privacy & Security',
+        subtitle: 'Control your privacy settings',
+        onTap: () {},
+      ));
+    }
+
+    if (_isVisible('change_password')) {
+      if (settingsItems.isNotEmpty) settingsItems.add(const Divider(height: 1));
+      settingsItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.lock_shield,
+        title: 'Change Password',
+        subtitle: 'Update your password',
+        onTap: () {
+          Navigator.of(context).pushNamed('/change-password');
+        },
+      ));
+    }
+
+    if (_isVisible('dark_mode')) {
+      if (settingsItems.isNotEmpty) settingsItems.add(const Divider(height: 1));
+      settingsItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.moon,
+        title: 'Dark Mode',
+        subtitle: 'Switch to dark theme',
+        onTap: () {},
+        trailing: Switch(
+          value: _darkModeEnabled,
+          onChanged: (value) {
+            setState(() {
+              _darkModeEnabled = value;
+            });
+          },
+          activeColor: const Color(0xff0077B6),
+        ),
+      ));
+    }
+
+    if (_isVisible('language')) {
+      if (settingsItems.isNotEmpty) settingsItems.add(const Divider(height: 1));
+      settingsItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.globe,
+        title: 'Language',
+        subtitle: _selectedLanguage,
+        onTap: () => _showLanguageSelector(),
+      ));
+    }
+
+    if (_isVisible('data_usage')) {
+      if (settingsItems.isNotEmpty) settingsItems.add(const Divider(height: 1));
+      settingsItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.chart_bar,
+        title: 'Data Usage',
+        subtitle: 'Optimize data consumption',
+        onTap: () {},
+        trailing: Switch(
+          value: _dataUsageOptimized,
+          onChanged: (value) {
+            setState(() {
+              _dataUsageOptimized = value;
+            });
+          },
+          activeColor: const Color(0xff0077B6),
+        ),
+      ));
+    }
+
+    if (_isVisible('admin_controls') && RoleManager.isAdmin(_currentUser)) {
+      if (settingsItems.isNotEmpty) settingsItems.add(const Divider(height: 1));
+      settingsItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.gear_alt,
+        title: 'Admin Controls',
+        subtitle: 'Manage users and system settings',
+        onTap: () {
+          // Navigate to admin panel or show admin options
+          _showAdminOptions();
+        },
+      ));
+    }
+
+    if (_isVisible('backup_sync')) {
+      if (settingsItems.isNotEmpty) settingsItems.add(const Divider(height: 1));
+      settingsItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.cloud,
+        title: 'Backup & Sync',
+        subtitle: 'Sync your data across devices',
+        onTap: () {},
+        trailing: Switch(
+          value: _backupEnabled,
+          onChanged: (value) {
+            setState(() {
+              _backupEnabled = value;
+            });
+          },
+          activeColor: const Color(0xff0077B6),
+        ),
+      ));
+    }
+
+    if (settingsItems.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -133,48 +392,103 @@ class _SettingsViewState extends State<SettingsView> {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          _buildSettingsItem(
-            icon: CupertinoIcons.bell,
-            title: 'Notifications',
-            subtitle: 'Manage notification preferences',
-            onTap: () {},
-          ),
-          const Divider(height: 1),
-          _buildSettingsItem(
-            icon: CupertinoIcons.lock,
-            title: 'Privacy & Security',
-            subtitle: 'Control your privacy settings',
-            onTap: () {},
-          ),
-          const Divider(height: 1),
-          _buildSettingsItem(
-            icon: CupertinoIcons.lock,
-            title: 'Change Password',
-            subtitle: 'Update your password',
-            onTap: () {
-              Navigator.of(context).pushNamed('/change-password');
-            },
-          ),
-          const Divider(height: 1),
-          _buildSettingsItem(
-            icon: CupertinoIcons.moon,
-            title: 'Dark Mode',
-            subtitle: 'Switch to dark theme',
-            onTap: () {},
-            trailing: Switch(
-              value: false,
-              onChanged: (value) {},
-              activeColor: const Color(0xff0077B6), // Primary mid blue for switch
-            ),
-          ),
-        ],
-      ),
+      child: Column(children: settingsItems),
     );
   }
 
   Widget _buildAboutSection() {
+    List<Widget> aboutItems = [];
+
+    if (_isVisible('about_app')) {
+      aboutItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.info_circle,
+        title: 'About',
+        subtitle: 'App version and information',
+        onTap: () => _showAboutDialog(),
+      ));
+    }
+
+    if (_isVisible('help_support')) {
+      if (aboutItems.isNotEmpty) aboutItems.add(const Divider(height: 1));
+      aboutItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.question_circle,
+        title: 'Help & Support',
+        subtitle: 'Get help and contact support',
+        onTap: () {},
+      ));
+    }
+
+    if (_isVisible('privacy_policy')) {
+      if (aboutItems.isNotEmpty) aboutItems.add(const Divider(height: 1));
+      aboutItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.shield_lefthalf_fill,
+        title: 'Privacy Policy',
+        subtitle: 'Read our privacy policy',
+        onTap: () => _launchURL('https://hippocampus-8d4f4f.webflow.io/privacy'),
+      ));
+    }
+
+    if (_isVisible('terms_service')) {
+      if (aboutItems.isNotEmpty) aboutItems.add(const Divider(height: 1));
+      aboutItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.doc_text,
+        title: 'Terms of Service',
+        subtitle: 'Read our terms of service',
+        onTap: () => _launchURL('https://hippocampus-8d4f4f.webflow.io/terms'),
+      ));
+    }
+
+    if (_isVisible('app_version')) {
+      if (aboutItems.isNotEmpty) aboutItems.add(const Divider(height: 1));
+      aboutItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.info,
+        title: 'App Version',
+        subtitle: '1.0.0 (Build 1)',
+        onTap: () {},
+        trailing: const SizedBox.shrink(),
+      ));
+    }
+
+    if (_isVisible('sign_out')) {
+      if (aboutItems.isNotEmpty) aboutItems.add(const Divider(height: 1));
+      aboutItems.add(_buildSettingsItem(
+        icon: CupertinoIcons.square_arrow_right,
+        title: 'Sign Out',
+        subtitle: 'Sign out of your account',
+        onTap: () async {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Sign Out'),
+              content: const Text('Are you sure you want to sign out?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: const Text('Sign Out'),
+                ),
+              ],
+            ),
+          );
+
+          if (confirmed == true) {
+            await widget.apiService.signout();
+            if (!mounted) return;
+            Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+          }
+        },
+        textColor: Colors.red,
+      ));
+    }
+
+    if (aboutItems.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -187,62 +501,206 @@ class _SettingsViewState extends State<SettingsView> {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          _buildSettingsItem(
-            icon: CupertinoIcons.info_circle,
-            title: 'About',
-            subtitle: 'App version and information',
-            onTap: () {},
-          ),
-          const Divider(height: 1),
-          _buildSettingsItem(
-            icon: CupertinoIcons.question_circle,
-            title: 'Help & Support',
-            subtitle: 'Get help and contact support',
-            onTap: () {},
-          ),
-          const Divider(height: 1),
-          _buildSettingsItem(
-            icon: CupertinoIcons.shield_lefthalf_fill,
-            title: 'Privacy Policy',
-            subtitle: 'Read our privacy policy',
-            onTap: () => _launchURL('https://hippocampus-8d4f4f.webflow.io/privacy'), // TODO: Replace with your actual privacy policy URL
-          ),
-          const Divider(height: 1),
-          _buildSettingsItem(
-            icon: CupertinoIcons.square_arrow_right,
-            title: 'Sign Out',
-            subtitle: 'Sign out of your account',
-            onTap: () async {
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Sign Out'),
-                  content: const Text('Are you sure you want to sign out?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('Sign Out'),
-                    ),
-                  ],
-                ),
-              );
-              
-              if (confirmed == true) {
-                await widget.apiService.signout();
-                if (!mounted) return;
-                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-              }
+      child: Column(children: aboutItems),
+    );
+  }
+
+  // Language selector dialog
+  void _showLanguageSelector() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Language'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            'English',
+            'Spanish',
+            'French',
+            'German',
+            'Chinese',
+            'Japanese',
+          ].map((language) => RadioListTile<String>(
+            title: Text(language),
+            value: language,
+            groupValue: _selectedLanguage,
+            onChanged: (value) {
+              setState(() {
+                _selectedLanguage = value!;
+              });
+              Navigator.pop(context);
             },
-            textColor: Colors.red,
+          )).toList(),
+        ),
+      ),
+    );
+  }
+
+  // About dialog
+  void _showAboutDialog() {
+    showAboutDialog(
+      context: context,
+      applicationName: 'Flutter AI Bot',
+      applicationVersion: '1.0.0',
+      applicationIcon: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: const Color(0xff48CAE4).withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(
+          CupertinoIcons.chat_bubble_2,
+          color: Color(0xff48CAE4),
+          size: 30,
+        ),
+      ),
+      children: [
+        const Text('A powerful AI-powered chat application built with Flutter.'),
+        const SizedBox(height: 16),
+        const Text('© 2024 Flutter AI Bot. All rights reserved.'),
+      ],
+    );
+  }
+
+  // Admin options dialog
+  void _showAdminOptions() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  'Admin Controls',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'ADMIN ONLY',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView(
+                children: [
+                  _buildAdminOption(
+                    icon: CupertinoIcons.person_2,
+                    title: 'User Management',
+                    subtitle: 'Manage user accounts and permissions',
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Navigate to user management
+                    },
+                  ),
+                  _buildAdminOption(
+                    icon: CupertinoIcons.chat_bubble_2,
+                    title: 'Channel Management',
+                    subtitle: 'Create and manage channels',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/create-channel');
+                    },
+                  ),
+                  _buildAdminOption(
+                    icon: CupertinoIcons.person_add,
+                    title: 'Invite Members',
+                    subtitle: 'Invite new team members',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/invite-member');
+                    },
+                  ),
+                  _buildAdminOption(
+                    icon: CupertinoIcons.chart_bar,
+                    title: 'Analytics',
+                    subtitle: 'View usage statistics and reports',
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Navigate to analytics
+                    },
+                  ),
+                  _buildAdminOption(
+                    icon: CupertinoIcons.gear_alt,
+                    title: 'System Settings',
+                    subtitle: 'Configure system-wide settings',
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Navigate to system settings
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: const Color(0xff0077B6).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
-        ],
+          child: Icon(
+            icon,
+            color: const Color(0xff0077B6),
+            size: 20,
+          ),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF6B7280),
+          ),
+        ),
+        trailing: const Icon(
+          CupertinoIcons.chevron_right,
+          color: Color(0xFF9CA3AF),
+          size: 16,
+        ),
+        onTap: onTap,
       ),
     );
   }

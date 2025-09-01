@@ -8,11 +8,14 @@ import 'package:flutter_ai_bot/views/create_channel_view.dart';
 import 'package:flutter_ai_bot/views/invite_member_view.dart';
 import 'package:flutter_ai_bot/views/change_password_view.dart';
 import 'package:flutter_ai_bot/views/reset_password_view.dart';
+import 'package:flutter_ai_bot/views/access_denied_view.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
+
+
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -108,7 +111,38 @@ class _MyAppState extends State<MyApp> {
         '/signup': (context) => SignupView(apiService: apiService),
         '/forgot-password': (context) => ForgotPasswordView(apiService: apiService),
         '/home': (context) => MainNavigation(apiService: apiService),
-        '/channels': (context) => MainNavigation(apiService: apiService, initialIndex: 1),
+        '/dashboard': (context) => FutureBuilder<bool>(
+          future: apiService.isCurrentUserAdmin(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasData && snapshot.data == true) {
+              return MainNavigation(apiService: apiService, initialIndex: 0);
+            } else {
+              return const AccessDeniedView(
+                title: 'Admin Access Required',
+                message: 'The dashboard is only available to administrators. Please contact your admin for access.',
+              );
+            }
+          },
+        ),
+        '/channels': (context) => FutureBuilder<bool>(
+          future: apiService.isCurrentUserAdmin(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+            // For admin users: Dashboard=0, Channels=1
+            // For regular users: Channels=0
+            final channelsIndex = (snapshot.hasData && snapshot.data == true) ? 1 : 0;
+            return MainNavigation(apiService: apiService, initialIndex: channelsIndex);
+          },
+        ),
         '/create-channel': (context) => CreateChannelView(apiService: apiService),
         '/change-password': (context) => ChangePasswordView(apiService: apiService),
         '/reset-password': (context) {
