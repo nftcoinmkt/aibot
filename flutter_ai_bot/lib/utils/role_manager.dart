@@ -87,25 +87,25 @@ class RoleManager {
       'profile_avatar': true,
       'profile_name': true,
       'profile_email': true,
-      'profile_edit_button': true,
+      'profile_edit_button': false,
       
       // Settings Section - Mixed access
       'settings_section': true,
-      'notifications': true,
-      'privacy_security': true,
+      'notifications': false,
+      'privacy_security': false,
       'change_password': true,
-      'dark_mode': true,
-      'language': true,
-      'data_usage': !isAdminUser, // Only for regular users
-      'backup_sync': true,
+      'dark_mode': false,
+      'language': false,
+      'data_usage': false, // Only for regular users
+      'backup_sync': false,
       'admin_controls': isAdminUser, // Only for admins
       
       // About Section - Available to all
-      'about_section': true,
-      'about_app': true,
-      'help_support': true,
+      'about_section': false,
+      'about_app': false,
+      'help_support': false,
       'privacy_policy': true,
-      'terms_service': true,
+      'terms_service': false,
       'app_version': true,
       'sign_out': true,
     };

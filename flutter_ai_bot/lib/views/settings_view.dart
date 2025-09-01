@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_ai_bot/network/api_service.dart';
 import 'package:flutter_ai_bot/utils/role_manager.dart';
+import 'package:flutter_ai_bot/utils/app_info.dart';
 import 'package:flutter_ai_bot/models/user_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -59,59 +60,12 @@ class SettingsViewState extends State<SettingsView> {
     }
   }
 
-  // Method to toggle visibility of settings elements
-  void _toggleVisibility(String key) {
-    setState(() {
-      _settingsVisibility[key] = !(_settingsVisibility[key] ?? false);
-    });
-  }
-
   // Method to check if an element should be visible
   bool _isVisible(String key) {
     return _settingsVisibility[key] ?? false;
   }
 
-  // Method to show visibility controls (for demo purposes)
-  void _showVisibilityControls() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Control Settings Visibility',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView(
-                children: _settingsVisibility.keys.map((key) {
-                  return SwitchListTile(
-                    title: Text(key.replaceAll('_', ' ').toUpperCase()),
-                    value: _settingsVisibility[key] ?? false,
-                    onChanged: (value) {
-                      setState(() {
-                        _settingsVisibility[key] = value;
-                      });
-                      Navigator.pop(context);
-                      setState(() {}); // Refresh the main view
-                    },
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -151,15 +105,6 @@ class SettingsViewState extends State<SettingsView> {
           ],
         ),
         centerTitle: false,
-        actions: [
-          // Debug button to control visibility (remove in production)
-          if (RoleManager.isAdmin(_currentUser))
-            IconButton(
-              icon: const Icon(CupertinoIcons.eye, color: Colors.white),
-              onPressed: _showVisibilityControls,
-              tooltip: 'Control Visibility',
-            ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -221,20 +166,42 @@ class SettingsViewState extends State<SettingsView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (_isVisible('profile_name'))
-                  const Text(
-                    'User Name',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937),
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        _currentUser?.fullName ?? 'Loading...',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      if (RoleManager.isAdmin(_currentUser)) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            RoleManager.getRoleDisplayName(_currentUser?.role ?? 'user').toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 if (_isVisible('profile_name') && _isVisible('profile_email'))
                   const SizedBox(height: 4),
                 if (_isVisible('profile_email'))
-                  const Text(
-                    'user@example.com',
-                    style: TextStyle(
+                  Text(
+                    _currentUser?.email ?? 'Loading...',
+                    style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF6B7280),
                     ),
@@ -443,7 +410,7 @@ class SettingsViewState extends State<SettingsView> {
       aboutItems.add(_buildSettingsItem(
         icon: CupertinoIcons.info,
         title: 'App Version',
-        subtitle: '1.0.0 (Build 1)',
+        subtitle: AppInfo.fullVersion,
         onTap: () {},
         trailing: const SizedBox.shrink(),
       ));
@@ -540,8 +507,8 @@ class SettingsViewState extends State<SettingsView> {
   void _showAboutDialog() {
     showAboutDialog(
       context: context,
-      applicationName: 'Flutter AI Bot',
-      applicationVersion: '1.0.0',
+      applicationName: AppInfo.appName,
+      applicationVersion: AppInfo.fullVersion,
       applicationIcon: Container(
         width: 60,
         height: 60,
@@ -558,6 +525,8 @@ class SettingsViewState extends State<SettingsView> {
       children: [
         const Text('A powerful AI-powered chat application built with Flutter.'),
         const SizedBox(height: 16),
+        Text('Package: ${AppInfo.packageName}'),
+        const SizedBox(height: 8),
         const Text('© 2024 Flutter AI Bot. All rights reserved.'),
       ],
     );

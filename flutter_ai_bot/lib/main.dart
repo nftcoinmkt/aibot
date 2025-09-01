@@ -9,9 +9,11 @@ import 'package:flutter_ai_bot/views/invite_member_view.dart';
 import 'package:flutter_ai_bot/views/change_password_view.dart';
 import 'package:flutter_ai_bot/views/reset_password_view.dart';
 import 'package:flutter_ai_bot/views/access_denied_view.dart';
+import 'package:flutter_ai_bot/utils/app_info.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppInfo.initialize();
   runApp(const MyApp());
 }
 
